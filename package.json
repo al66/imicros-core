@@ -1,6 +1,6 @@
 {
   "name": "imicros-authm",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "authentification & authorization services for imicros-backend",
   "main": "index.js",
   "directories": {
@@ -11,7 +11,9 @@
     "test-local": "jest --coverage --no-cache --config=local.js --silent",
     "test-cassandra": "jest test/cassandra.spec.js --coverage --no-cache --config=local.js",
     "test-encryption": "jest test/encryption.spec.js --coverage --no-cache --config=local.js",
-    "test-users": "jest test/users.spec.js --coverage --no-cache --config=local.js"
+    "test-users": "jest test/users.spec.js --coverage --no-cache --config=local.js",
+    "test-groups-class": "jest test/groups.class.spec.js --coverage --no-cache --config=local.js",
+    "test-app": "jest test/application.spec.js --no-cache"
   },
   "jest": {
     "collectCoverageFrom": [

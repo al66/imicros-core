@@ -6,6 +6,7 @@ const { Encryption } = require("../lib/util/encryption");
 const { Serializer } = require("../lib/util/serializer");
 
 // helper & mocks
+const { v4: uuid } = require("uuid");
 const { credentials } = require("./helper/credentials");
 const { KeysMock, keysMockValues } = require("./helper/keys");
 
@@ -106,6 +107,40 @@ describe("Test encryption class", () => {
             expect(decrypted).toBeDefined();
             expect(decrypted).toEqual(obj);
         });
+
+        it("it should encrypt end decrypt an array in time", async () => {
+            let load = [];
+            for (let i = 0; i < 1000; i++) { load.push(uuid()) };
+            let encrypted = [];
+            for (const data of load) {
+                const e = await encryption.encryptData(data);
+                encrypted.push(e); 
+            }
+            expect(encrypted.length).toEqual(1000);
+            let decrypted = [];
+            for (const data of encrypted) {
+                const e = await encryption.decryptData(data); 
+                decrypted.push(e); 
+            }
+            expect(decrypted.length).toEqual(1000);
+            expect(decrypted).toEqual(load);
+        });
+
+        it("it should sign and verify a token", async () => {
+            const { token } = await encryption.sign({payload: { foo: "bar" }});
+            expect(token).toBeDefined();
+            const { payload } = await encryption.verify({ token });
+            expect(payload).toBeDefined(); 
+            expect(payload).toEqual(expect.objectContaining({ foo: "bar" }));
+        })
+
+        it("it should sign and verify a second token", async () => {
+            const { token } = await encryption.sign({payload: { bar: "foo" }});
+            expect(token).toBeDefined();
+            const { payload } = await encryption.verify({ token });
+            expect(payload).toBeDefined(); 
+            expect(payload).toEqual(expect.objectContaining({ bar: "foo" }));
+        })
 
     });
 

@@ -25,7 +25,7 @@ const KeysMock = {
                     };    
                 }
                 return {
-                    id: keys.current,
+                    id: ctx.params.id || keys.current,
                     key: "mySecret"
                 };
             }
@@ -43,7 +43,7 @@ const KeysMock = {
                     };    
                 }
                 return {
-                    id: keys.current,
+                    id: ctx.params.id || keys.current,
                     key: "mySecret"
                 };
             }
