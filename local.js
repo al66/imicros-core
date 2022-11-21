@@ -8,6 +8,9 @@ process.env.CASSANDRA_PASSWORD = "cassandra";
 /* Jest config */
 module.exports = {
     testPathIgnorePatterns: ["/dev/"],
-    coveragePathIgnorePatterns: ["/node_modules/","/dev/","/test/"]
+    coveragePathIgnorePatterns: ["/node_modules/","/dev/","/test/"],
+    moduleDirectories: [
+      "node_modules"
+    ]
 };
 

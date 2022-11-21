@@ -11,6 +11,59 @@
 
 const { v1: uuidv1 } = require("uuid");
 
+class Application {
+    constructor({ db, providers }) {
+        this.db = db;
+        this.commandBus = new CommandBus();
+        this.eventBus = new EventBus();
+        this.queryBus = new QueryBus();
+        this.repositories = {};
+
+        providers.forEach(provider => {
+            if (CommandHandler.isPrototypeOf(provider)) {
+                const command = provider.forCommand().name;
+                const instance = new provider({ application: this });
+                this.commandBus.registerHandler(command,instance);
+            }
+            if (Repository.isPrototypeOf(provider)) {
+                const repository = new provider({ application: this, db: this.db, snapshotCounter: provider.setSnapshotCounter() });
+                this.repositories[repository.constructor.name] = repository;
+            }
+            if (EventHandler.isPrototypeOf(provider)) {
+                const event = provider.forEvent().name;
+                const instance = new provider({ application: this });
+                this.eventBus.registerHandler(event,instance);
+            }
+            if (QueryHandler.isPrototypeOf(provider)) {
+                const query = provider.forQuery().name;
+                const instance = new provider({ application: this });
+                this.queryBus.registerHandler(query,instance);
+            }
+        });
+    }
+
+    getRepository(type) {
+        return this.repositories[type.name];
+    }
+
+    async getModelById(type, uid) {
+        const repository = this.getRepository(type);
+        return repository.getById({ uid });
+    }
+
+    async execute(command) {
+        return await this.commandBus.execute(command);
+    }
+
+    async apply(event) {
+        return await this.eventBus.apply(event);
+    }
+
+    async query(query) {
+        return await this.queryBus.execute(query);
+    }
+}
+
 // Simple memory store
 class DefaultDatabase {
     constructor () {
@@ -225,11 +278,104 @@ class Model {
         return event;
     }
 
-    async commit ({ emit = true } = {}) {
+    async commit () {
         const events = [...this.localEvents];
         await this.repository.persist({ aggregate: this });
-        if (emit) await this.repository.publisher.emit(events);
+        await this.repository.publisher.emit(events);
         return events;
+    }
+}
+
+class CommandHandler {
+    constructor ({application}) {
+        this.application = application;
+    }
+
+    static forCommand() {
+        return null;
+    }
+    
+    execute(command) {
+        return [];
+    }
+}
+
+class EventHandler {
+    constructor ({application}) {
+        this.application = application;
+    }
+
+    static forEvent() {
+        return null;
+    }
+
+    apply (event) {
+    }
+}
+
+class QueryHandler {
+    constructor ({application}) {
+        this.application = application;
+    }
+
+    static forQuery() {
+        return null;
+    }
+    
+    execute(query) {
+        return null;
+    }
+}
+
+class CommandBus {
+    constructor () {
+        this.handler = {}; 
+    }
+
+    registerHandler(command,handler) {
+        this.handler[command] = handler;
+    }
+
+    execute(command) {
+        if (!this.handler[command.constructor.name]) throw new MissingCommandhandler({ command: command.constructor.name });
+        return this.handler[command.constructor.name].execute(command);
+    }
+}
+
+class EventBus {
+    constructor () {
+        this.handler = {}; 
+    }
+
+    registerHandler(event,handler) {
+        if (!this.handler[event]) this.handler[event] = [];
+        this.handler[event].push(handler);
+    }
+
+    async apply(event) {
+        const events = [];
+        if (!this.handler[event.constructor.name]) return null;
+        for (const handler of this.handler[event.constructor.name]) {
+            const newEvents = await handler.apply(event);
+            if (newEvents && newEvents.length > 0) events.push(...newEvents);
+        }
+        return events;
+    }
+}
+
+class QueryBus {
+    constructor () {
+        this.handler = {}; 
+    }
+
+    registerHandler(query,handler) {
+        this.handler[query] = handler;
+    }
+
+    async execute(query) {
+        if (!this.handler[query.constructor.name]) throw new MissingQueryhandler({ query: query.constructor.name });
+        const result = await this.handler[query.constructor.name].execute(query);
+        return result;
     }
 }
 
@@ -241,13 +387,20 @@ class Exception extends Error {
         this.message = this.constructor.name;
         for (const [attribute, value] of Object.entries(attributes)) this[attribute] = value;
     }
-}
+ }
+
+class MissingCommandhandler extends Exception {};
+class MissingQueryhandler extends Exception {};
 
 module.exports = {
+    Application,
     Repository,
     DefaultDatabase,
     Model,
+    CommandHandler,
+    EventHandler,
+    QueryHandler,
     Exception
-}
+};
 
 

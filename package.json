@@ -8,12 +8,11 @@
   },
   "scripts": {
     "test": "jest --coverage --no-cache --silent",
-    "test-local": "jest --coverage --no-cache --config=local.js --silent",
+    "test-local": "jest --coverage --runInBand --no-cache --config=local.js --silent",
     "test-cassandra": "jest test/cassandra.spec.js --coverage --no-cache --config=local.js",
     "test-encryption": "jest test/encryption.spec.js --coverage --no-cache --config=local.js",
-    "test-users": "jest test/users.spec.js --coverage --no-cache --config=local.js",
-    "test-groups-class": "jest test/groups.class.spec.js --coverage --no-cache --config=local.js",
-    "test-app": "jest test/application.spec.js --no-cache"
+    "test-users": "jest test/users.spec.js --runInBand --no-cache --config=local.js",
+    "test-mfa": "jest test/mfa.totp.spec.js --no-cache  --config=local.js"
   },
   "jest": {
     "collectCoverageFrom": [
@@ -31,6 +30,9 @@
     "rootDir": ".",
     "roots": [
       "./test"
+    ],
+    "moduleDirectories": [
+      "node_modules"
     ]
   },
   "repository": {
@@ -49,13 +51,15 @@
   },
   "homepage": "https://github.com/al66/imicros-authm#readme",
   "devDependencies": {
-    "jest": "^29.0.3",
-    "moleculer": "^0.14.23",
     "imicros-acl": "^0.0.13",
+    "jest": "^29.3.1",
+    "moleculer": "^0.14.26",
     "uuid": "^9.0.0"
   },
   "dependencies": {
+    "base32.js": "^0.1.0",
+    "cassandra-driver": "^4.6.4",
     "jsonwebtoken": "^8.5.1",
-    "cassandra-driver": "^4.6.4"
+    "qrcode": "^1.5.1"
   }
 }

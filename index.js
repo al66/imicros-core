@@ -5,6 +5,7 @@
 
 module.exports = {
     Users: require("./lib/services/users"),
-    Errors: require("./lib/util/errors")
+    Groups: require("./lib/services/groups"),
+    Exceptions: require("./lib/exceptions/exceptions")
 };
  
