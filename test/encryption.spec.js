@@ -142,6 +142,12 @@ describe("Test encryption class", () => {
             expect(payload).toEqual(expect.objectContaining({ bar: "foo" }));
         })
 
+        it("it should return random string of 64 bytes as hex", () => {
+            const random = encryption.randomBytes();
+            expect(random).toBeDefined();
+            expect(random.length > 64).toEqual(true);
+        })
+
     });
 
     describe("Test stop broker", () => {

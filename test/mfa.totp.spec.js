@@ -35,6 +35,7 @@ describe("Test TOTP", () => {
             expect(secret.otpauth_url).toEqual(expectedUrl);
             // const data_url = await qrcode.toDataURL(secret.otpauth_url);
             // console.log(data_url);
+            // to be displayed in <img src="...data_url.." />
         })
     });
 

@@ -6,6 +6,7 @@
 module.exports = {
     Users: require("./lib/services/users"),
     Groups: require("./lib/services/groups"),
+    Agents: require("./lib/services/agents"),
     Exceptions: require("./lib/exceptions/exceptions")
 };
  

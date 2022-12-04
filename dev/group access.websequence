@@ -1,0 +1,11 @@
+title Group access
+
+caller -> gateway: groups.requestAccess { groupId }
+note over gateway: authorize
+gateway -> users: users.verifyAuthToken
+note over users:- verify meta.authToken -> userId, sessionId \n- get user from repository \n- add userToken to meta data
+users -> gateway:
+gateway -> groups: groups.requestAccess { groupId }
+note over groups:- verify meta.userToken -> user\n- get group from repository and check, if user is member
+groups -> gateway: { accessToken }
+gateway -> caller: { accessToken }

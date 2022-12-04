@@ -1,0 +1,21 @@
+title Service call
+
+caller->gateway: service.action { params }
+note over gateway: authorize
+gateway --> users: users.verifyAuthToken
+note over users:- verify meta.authToken -> userId, sessionId \n- get user from repository \n- add userToken to meta data
+users --> gateway:
+gateway -> service: service.action { params }
+note over service:Middleware: authorize
+service --> groups: groups.verifyAccessToken
+note over groups:- verify meta.accessToken -> userId, groupId\n- verify meta.userToken -> user\n- get group from repository and check for member\n- add aclToken to meta data
+groups --> service: 
+opt 
+    note over service:Middleware: isAuthorized
+end
+note over service: service.action { params }
+opt 
+    note over service:Middleware: isAuthorized
+end
+service -> gateway: { result }
+gateway -> caller: { result }
