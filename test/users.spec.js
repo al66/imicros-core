@@ -1074,6 +1074,42 @@ describe.each([
 
         })
 
+        it("should list the group for the third user before leaving", async () => {
+            opts = { meta: { authToken: authTokens[3] } };
+            let params = {};
+            const result = await  broker.call("users.get", params, opts)
+            expect(result).toBeDefined();
+            expect(result.groups[groups[0].uid]).toBeDefined();
+        });
+
+        it("should leave the group", async () => {
+            opts = { meta: { userToken: userTokens[3] } };
+            let params = {
+                groupId: groups[0].uid
+            };
+            const result = await  broker.call("groups.leave", params, opts)
+            expect(result).toEqual(true);
+            expect(events["GroupMemberLeft"]).toBeDefined();
+            expect(events["GroupMemberLeft"].length).toEqual(1);
+            expect(events["GroupMemberLeft"][0].payload.groupId).toEqual(groups[0].uid);
+            expect(events["GroupMemberLeft"][0].payload.member).toEqual({
+                uid: users[3].uid,
+                createdAt: expect.any(Number),
+                confirmedAt: expect.any(Number),
+                email: users[3].email,
+                locale: users[3].locale        
+            });
+            expect(events["GroupMemberLeft"][0].payload.leftAt).toEqual(expect.any(Number));            
+        })
+
+        it("should not list the group for the leaved user", async () => {
+            opts = { meta: { authToken: authTokens[3] } };
+            let params = {};
+            const result = await  broker.call("users.get", params, opts)
+            expect(result).toBeDefined();
+            expect(result.groups[groups[0].uid]).not.toBeDefined();
+        });
+
     });
    
     describe("Test groups access", () => {   
@@ -1404,7 +1440,19 @@ describe.each([
             };
             const result = await broker.call("agents.getLog", params, opts);
             expect(result).toBeDefined();
-            console.log(result);
+            //console.log(result);
+            //console.log(result.limit);
+            expect(result.count).toEqual(6);
+            expect(result.limit).toBeDefined();
+            expect(result.events.length).toEqual(result.count);
+            expect(result.events).toEqual(expect.arrayContaining([
+                expect.objectContaining({ '$_name': 'AgentCreated' }),
+                expect.objectContaining({ '$_name': 'AgentRenamed' }),
+                expect.objectContaining({ '$_name': 'CredentialsCreated' }),
+                expect.objectContaining({ '$_name': 'AgentLoggedIn' }),
+                expect.objectContaining({ '$_name': 'AgentLoggedOut' }),
+                expect.objectContaining({ '$_name': 'CredentialsDeleted' })
+            ]));
         })
 
         it("should delete the agent", async () => {
