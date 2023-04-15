@@ -2,15 +2,15 @@
 
 const { ServiceBroker } = require("moleculer");
 //const { AclMiddleware } = require("imicros-acl");
-const { DB } = require("../lib/db/cassandra");
+const { DB } = require("../lib/db/cassandraCQRS");
 const { v4: uuid } = require("uuid");
 const { Keys } = require("../lib/util/keys");
 const { Encryption } = require("../lib/util/encryption");
 const { Serializer } = require("../lib/util/serializer");
 
 // helper & mocks
-const { credentials } = require("./helper/credentials");
-const { KeysMock } = require("./helper/keys");
+// const { credentials } = require("./helper/credentials");
+const { keysMock } = require("./helper/keys");
 
 const settings = {
     db: { 
@@ -18,9 +18,6 @@ const settings = {
         datacenter: process.env.CASSANDRA_DATACENTER || "datacenter1", 
         keyspace: process.env.CASSANDRA_KEYSPACE_AUTH || "imicros_auth",
         userTable: "user"
-    },
-    services: {
-        keys: "v1.keys"
     } 
 }
 
@@ -45,9 +42,8 @@ describe("Test database connection", () => {
                 logLevel: "info" //"debug"
             });
             // broker.createService(ACL);
-            broker.createService(KeysMock);
             await broker.start();
-            await broker.waitForServices([settings.services.keys]);
+            keysMock.addKey();
             expect(broker).toBeDefined();
         });
 
@@ -56,18 +52,8 @@ describe("Test database connection", () => {
     describe("Test database connector", () => {
 
         it("it should initialize the connector and connect to database", async () => {
-            let options = {
-                service: {
-                    name: credentials.serviceId,
-                    token: credentials.authToken
-                },
-                services: {
-                    keys: "v1.keys"
-                }
-            };
-            keys = new Keys({ broker, options});
             serializer = new Serializer();
-            encryption = new Encryption({ logger: broker.logger, keys, serializer, options: {} });
+            encryption = new Encryption({ logger: broker.logger, keys: keysMock, serializer, options: {} });
             db = new DB({logger: broker.logger, encryption, options: settings.db, services: settings.services});
             await db.connect();
             expect(db instanceof DB).toEqual(true);
@@ -211,6 +197,24 @@ describe("Test database connection", () => {
             });
             expect(result).toEqual(uid);
         })
+
+        it("it should preserve the same key for multiple requests", async () => {
+            const uid2 = uuid();
+            const CQRS = db.getCQRSInterface();
+            let requests = [];
+            for (let i=0;i< 100; i++) {
+                let single = CQRS.preserveUniqueKey({ 
+                    key: `${timestamp}@imicros.de`,
+                    uid: uid2
+                });
+                requests.push(single);
+            }
+            const result = await Promise.all(requests);
+            // console.log(result);
+            expect(result[0]).toEqual(uid);
+        })
+
+
     });
 
     describe("Test stop broker", () => {
