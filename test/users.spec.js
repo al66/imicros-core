@@ -830,6 +830,7 @@ describe.each([
                 uid: groups[0].uid,
                 createdAt: expect.any(Number),
                 label: groups[0].label,
+                adminGroup: false,
                 members: [{ 
                     user: {
                         uid: users[0].uid,
@@ -1715,6 +1716,7 @@ describe.each([
                 uid: groups[0].uid,
                 createdAt: expect.any(Number),
                 label: groups[0].label,
+                adminGroup: false,
                 invitations: [],
                 agents: expect.any(Object),
                 members: [{ 
@@ -1928,6 +1930,7 @@ describe.each([
                 uid: groups[0].uid,
                 createdAt: expect.any(Number),
                 label: groups[0].label,
+                adminGroup: false,
                 invitations: [],
                 agents: expect.any(Object),
                 members: [{ 
@@ -1988,6 +1991,7 @@ describe.each([
                 uid: groups[0].uid,
                 createdAt: expect.any(Number),
                 label: groups[0].label,
+                adminGroup: false,
                 invitations: [],
                 agents: expect.any(Object),
                 members: [{ 

@@ -15,7 +15,7 @@
     "test-users": "jest test/users.spec.js --runInBand --no-cache --config=local.js",
     "test-mfa": "jest test/mfa.totp.spec.js --no-cache  --config=local.js",
     "test-admin": "jest test/admin.spec.js --no-cache  --config=local.js",
-    "test-transit": "jest test/transit.spec.js --no-cache  --config=local.js",
+    "test-transit": "jest test/transit.spec.js --no-cache  --config=local.js --forceExit",
     "test-vault": "jest test/vault.spec.js --no-cache  --config=local.js --forceExit",
     "test-unseal": "jest test/unseal.spec.js --no-cache  --config=local.js"
   },

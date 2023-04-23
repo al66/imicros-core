@@ -280,6 +280,32 @@ describe.each([
             accessToken = result.accessToken;
         });
 
+        it("should retrieve the created group", async () => {
+            opts = { meta: { userToken, accessToken } };
+            let params = {
+                groupId: adminGroupId
+            }
+            const result = await broker.call("groups.get", params, opts);
+            expect(result).toEqual({
+                uid: adminGroupId,
+                createdAt: expect.any(Number),
+                label: "authm.admin.group",
+                adminGroup: true,
+                members: [{ 
+                    user: {
+                        uid: admin.id,
+                        createdAt: expect.any(Number),
+                        confirmedAt: expect.any(Number),
+                        email: admin.email,
+                        locale: admin.locale
+                    }, 
+                    role: "admin"
+                }],
+                keys: expect.any(Object)
+            });
+        });
+
+
         it("verify access token and retrieve acl data and aclToken", async () => {
             opts = { meta: { userToken, accessToken } };
             let params = {};

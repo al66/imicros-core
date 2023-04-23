@@ -1,11 +1,22 @@
 "use strict";
 
+require("leaked-handles");
+
 const { ServiceBroker } = require("moleculer");
 const { Transit } = require("../index");
 
 // const crypto = require("crypto");
 
 // const prime = crypto.generatePrimeSync(20);
+
+const options = {
+    db: {
+        contactPoints: process.env.CASSANDRA_CONTACTPOINTS || "127.0.0.1", 
+        datacenter: process.env.CASSANDRA_DATACENTER || "datacenter1", 
+        keyspace: process.env.CASSANDRA_KEYSPACE_AUTH || "imicros_auth",
+        keysTable: "servicekeys"
+    }
+}
 
 let events = [];
 const Listener = {
@@ -32,13 +43,17 @@ describe("Test transit encryption", () => {
 
     const brokers = [];
 
+    afterAll(async () => {
+        await new Promise(resolve => setTimeout(() => resolve(), 500)); // avoid jest open handle error
+    });
+
     it("it should start the brokers with encryption middleware", async () => {
         ["first", "second", "third"].map(nodeID => {
             const broker =  new ServiceBroker({
                 nodeID: nodeID,
                 //transporter: "TCP",
                 transporter: "nats://192.168.2.124:30284",
-                middlewares: [Transit({ })],
+                middlewares: [Transit({ options })],
                 logger: console,
                 logLevel: "info" //"debug"
             });

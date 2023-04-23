@@ -42,7 +42,7 @@ describe("Test master/key service", () => {
 
     describe("Test vault", () => {
         
-        let shares, part, token;
+        let shares, part, token, hash;
         
         it("it should start the brokers with vault service", async () => {
             ["first", "second", "third"].map(nodeID => {
@@ -55,7 +55,7 @@ describe("Test master/key service", () => {
                 });
                 broker.createService(MasterService);
                 brokers.push(broker);
-            });        
+            });
             // Start broker
             await Promise.all(brokers.map(broker => broker.start()));
             // Ensure services & all brokers are available
@@ -236,7 +236,37 @@ describe("Test master/key service", () => {
                 expect(err.message).toEqual("master is already unsealed");
             });
         });
-        
+
+        it("it should hash the key", async () => {
+            let params = {
+                key: "test"
+            };
+            let res = await brokers[0].call(serviceNameMaster + ".hash", params);
+            expect(res).toBeDefined();
+            hash = res;
+        });
+
+        it("it should hash the key with the same result", async () => {
+            let params = {
+                key: "test"
+            };
+            let res = await brokers[0].call(serviceNameMaster + ".hash", params);
+            expect(res).toBeDefined();
+            // expect result to be equal to first hash
+            expect(res).toEqual(hash);
+        });
+
+        it("it should hash the key for a different owner with different result", async () => {
+            let params = {
+                key: "test",
+                extension: "other"
+            };
+            let res = await brokers[0].call(serviceNameMaster + ".hash", params);
+            expect(res).toBeDefined();
+            // expect res not to be equal to first hash
+            expect(res).not.toEqual(hash);
+        });
+
         it("should stop the broker", async () => {
             expect.assertions(1);
             await Promise.all(brokers.map(async broker => await broker.stop()));
