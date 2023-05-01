@@ -9,6 +9,7 @@ const { Publisher } = require("../lib/provider/publisher");
 const { Keys } = require("../lib/provider/keys");
 const { Encryption } = require("../lib/provider/encryption");
 const { Vault } = require("../lib/provider/vault");
+const { Constants } = require("../lib/util/constants");
 
 // helper & mocks
 const { VaultMock } = require("./helper/vault");
@@ -27,7 +28,7 @@ describe.each([
     { database: CassandraDB, name: "CassandraDB" }
 ])("Test user service with database $name", ({ database }) => {
 
-    let broker, authTokens = [], userTokens = [], secretsMFA = [], aclTokens = [], agentCredentials = [], agentAuthTokens = [];
+    let broker, authTokens = [], userTokens = [], secretsMFA = [], agentCredentials = [], agentAuthTokens = [], accessTokenUsers =[] , accessTokenAgents =[], internalAccessTokenUsers = [], internalAccessTokenAgents = [], authTokenUsers = [], authTokenAgents = [], userToken = [], agentToken = [], accessTokenInternalUsers = [], accessTokenInternalAgents = [];
     
     beforeAll(() => {
     });
@@ -1266,20 +1267,18 @@ describe.each([
             accessToken = result.accessToken;
         });
 
-        it("verify access token and retrieve acl data and aclToken", async () => {
-            opts.meta.accessToken = accessToken;
+        it("verify access token and retrieve internal access token", async () => {
+            opts.meta.authToken = accessToken;
             let params = {};
             const result = await  broker.call("groups.verifyAccessToken", params, opts)
             expect(result).toBeDefined();
-            expect(result).toEqual({
-                aclToken: expect.any(String),
-            })
-            const decoded = jwt.decode(result.aclToken);
-            expect(decoded.type).toEqual("aclToken");
+            expect(result).toEqual(expect.any(String))
+            const decoded = jwt.decode(result);
+            expect(decoded.type).toEqual(Constants.TOKEN_TYPE_ACCESS_INTERNAL);
             expect(decoded.userId).toEqual(users[0].uid);
             expect(decoded.groupId).toEqual(groups[0].uid);
             expect(decoded.role).toEqual("admin");
-            aclTokens[0] = result.aclToken;
+            accessTokenInternalUsers[0] = result;
         });
 
         it("retrieve access token for member", async () => {
@@ -1295,21 +1294,19 @@ describe.each([
             accessToken = result.accessToken;
         });
 
-        it("verify access token and retrieve acl data and aclToken", async () => {
+        it("verify access token and retrieve internal access token for second user", async () => {
             opts.meta.userToken = userTokens[2];
-            opts.meta.accessToken = accessToken;
+            opts.meta.authToken = accessToken;
             let params = {};
             const result = await  broker.call("groups.verifyAccessToken", params, opts)
             expect(result).toBeDefined();
-            expect(result).toEqual({
-                aclToken: expect.any(String),
-            })
-            const decoded = jwt.decode(result.aclToken);
-            expect(decoded.type).toEqual("aclToken");
+            expect(result).toEqual(expect.any(String))
+            const decoded = jwt.decode(result);
+            expect(decoded.type).toEqual(Constants.TOKEN_TYPE_ACCESS_INTERNAL);
             expect(decoded.userId).toEqual(users[2].uid);
             expect(decoded.groupId).toEqual(groups[0].uid);
             expect(decoded.role).toEqual("member");
-            aclTokens[2] = result.aclToken;
+            accessTokenInternalUsers[2] = result;
         });
 
         it("should encrypt data with the group key", async () => {
@@ -1322,7 +1319,6 @@ describe.each([
             }
             const result = await  broker.call("groups.encrypt", params, opts)
             expect(result).toBeDefined();
-            console.log(result);
             encrypted = result;
         });
 
@@ -1334,7 +1330,9 @@ describe.each([
             }
             const result = await  broker.call("groups.decrypt", params, opts)
             expect(result).toBeDefined();
-            console.log(result);
+            expect(result).toEqual({
+                "any": "object"
+            });
         });
 
         it("should not decrypt data with the group key", async () => {
@@ -1397,24 +1395,107 @@ describe.each([
     
     describe("Test agents", () => {
 
-        let opts;
+        let opts, agentToken, accessToken, encrypted;
 
         beforeAll(async () => {
             await broker.waitForServices(["users","groups","agents"]);
         })
 
-        beforeEach(() => {
-            opts = { 
-                meta: {
-                    userToken: userTokens[0]
-                }
+        beforeEach(() => {});
+
+        it("retrieve access token", async () => {
+            opts = { meta: { userToken: userTokens[0] } };
+            let params = {
+                groupId: groups[0].uid
             };
+            const result = await  broker.call("groups.requestAccessForMember", params, opts)
+            expect(result).toBeDefined();
+            expect(result).toEqual({
+                accessToken: expect.any(String),
+            })
+            accessTokenUsers[0] = result.accessToken;
         });
 
-        it("should create an agent", async () => {
-            opts.meta.acl = {
-                token: aclTokens[0]
+        it("retrieve access token for second user", async () => {
+            opts = { meta: { userToken: userTokens[2] } };
+            let params = {
+                groupId: groups[0].uid
             };
+            const result = await  broker.call("groups.requestAccessForMember", params, opts)
+            expect(result).toBeDefined();
+            expect(result).toEqual({
+                accessToken: expect.any(String),
+            })
+            accessTokenUsers[2] = result.accessToken;
+        });
+
+        it("should verify the accessToken and return userToken", async () => {
+            opts = { meta: { authToken: accessTokenUsers[0], userToken: userTokens[0] } };
+            let params = {};
+            const result = await  broker.call("users.verifyAuthToken", params, opts)
+            const decoded = jwt.decode(result);
+            expect(result).toBeDefined();
+            expect(decoded.type).toEqual(Constants.TOKEN_TYPE_USER);
+            expect(decoded.userId).toEqual(users[0].uid);
+            expect(decoded.sessionId).toEqual(expect.any(String));
+            expect(decoded.user).toEqual({
+                uid: users[0].uid,
+                createdAt: expect.any(Number),
+                confirmedAt: expect.any(Number),
+                email: users[0].email,
+                locale: users[0].locale
+            });
+            userTokens[0] = result;
+        });
+
+        it("should verify the accessToken and return userToken for second user", async () => {
+            opts = { meta: { authToken: accessTokenUsers[2], userToken: userTokens[2] } };
+            let params = {};
+            const result = await  broker.call("users.verifyAuthToken", params, opts)
+            const decoded = jwt.decode(result);
+            expect(result).toBeDefined();
+            expect(decoded.type).toEqual(Constants.TOKEN_TYPE_USER);
+            expect(decoded.userId).toEqual(users[2].uid);
+            expect(decoded.sessionId).toEqual(expect.any(String));
+            expect(decoded.user).toEqual({
+                uid: users[2].uid,
+                createdAt: expect.any(Number),
+                confirmedAt: expect.any(Number),
+                email: users[2].email,
+                locale: users[2].locale
+            });
+            userTokens[2] = result;
+        });
+
+        it("should verify access token and return internal access token", async () => {
+            opts = { meta: { authToken: accessTokenUsers[0], userToken: userTokens[0] } };
+            const result = await  broker.call("groups.verifyAccessToken", {}, opts)
+            expect(result).toBeDefined();
+            expect(result).toEqual(expect.any(String))
+            const decoded = jwt.decode(result);
+            expect(decoded.type).toEqual(Constants.TOKEN_TYPE_ACCESS_INTERNAL);
+            expect(decoded.userId).toEqual(users[0].uid);
+            expect(decoded.groupId).toEqual(groups[0].uid);
+            expect(decoded.role).toEqual("admin");
+            accessTokenInternalUsers[0] = result;
+        });
+
+        it("should verify access token and return internal access token for second user", async () => {
+            opts = { meta: { authToken: accessTokenUsers[2], userToken: userTokens[2] } };
+            const result = await  broker.call("groups.verifyAccessToken", {}, opts)
+            expect(result).toBeDefined();
+            expect(result).toEqual(expect.any(String))
+            const decoded = jwt.decode(result);
+            expect(decoded.type).toEqual(Constants.TOKEN_TYPE_ACCESS_INTERNAL);
+            expect(decoded.userId).toEqual(users[2].uid);
+            expect(decoded.groupId).toEqual(groups[0].uid);
+            expect(decoded.role).toEqual("member");
+            accessTokenInternalUsers[2] = result;
+        });
+
+
+        it("should create an agent", async () => {
+            opts.meta = { userToken: userTokens[0], accessToken: accessTokenInternalUsers[0] };
             let params = {
                 agentId: agents[0].uid,
                 label: agents[0].label
@@ -1425,10 +1506,7 @@ describe.each([
         })
 
         it("should fail to create an agent", async () => {
-            opts.meta.userToken = userTokens[2];
-            opts.meta.acl = {
-                token: aclTokens[2]
-            };
+            opts.meta = { userToken: userTokens[2], accessToken: accessTokenInternalUsers[2] };
             let params = {
                 agentId: uuid(),
                 label: "my first agent"
@@ -1443,7 +1521,7 @@ describe.each([
         })
 
         it("should list the agents of the group", async () => {
-            opts = { meta: { userToken: userTokens[2] } };
+            opts.meta = { userToken: userTokens[2], accessToken: accessTokenInternalUsers[2] };
             let params = {
                 groupId: groups[0].uid
             }
@@ -1458,10 +1536,8 @@ describe.each([
         })
    
         it("should rename an agent", async () => {
+            opts.meta = { userToken: userTokens[0], accessToken: accessTokenInternalUsers[0] };
             agents[0].label = "my first agent (renamed)"
-            opts.meta.acl = {
-                token: aclTokens[0]
-            };
             let params = {
                 agentId: agents[0].uid,
                 label: agents[0].label
@@ -1478,12 +1554,10 @@ describe.each([
         })
 
         it("should create credentials", async () => {
+            opts.meta = { userToken: userTokens[0], accessToken: accessTokenInternalUsers[0] };
             agentCredentials[0] = {
                 agentId: agents[0].uid,
                 uid: uuid()
-            };
-            opts.meta.acl = {
-                token: aclTokens[0]
             };
             let params = {
                 agentId: agents[0].uid,
@@ -1507,9 +1581,7 @@ describe.each([
         })
 
         it("should retrieve the decrypted secret", async () => {
-            opts.meta.acl = {
-                token: aclTokens[0]
-            };
+            opts.meta = { userToken: userTokens[0], accessToken: accessTokenInternalUsers[0] };
             let params = {
                 agentId: agents[0].uid,
                 credentialsId: agentCredentials[0].uid
@@ -1528,9 +1600,7 @@ describe.each([
         })
 
         it("should retrieve agent details", async () => {
-            opts.meta.acl = {
-                token: aclTokens[0]
-            };
+            opts.meta = { userToken: userTokens[0], accessToken: accessTokenInternalUsers[0] };
             let params = {
                 agentId: agents[0].uid
             };
@@ -1577,7 +1647,48 @@ describe.each([
                 label: agents[0].label,
                 createdAt: expect.any(Number)
             });
+            agentToken = result;
         });
+
+        it("should get access for own group", async () => {
+            opts = { meta: { authToken: agentAuthTokens[0], agentToken } };
+            let params = {
+                groupId: groups[0].uid
+            }
+            const result = await  broker.call("groups.requestAccessForAgent", params, opts);
+            expect(result).toBeDefined();
+            expect(result).toEqual({
+                accessToken: expect.any(String),
+            })
+            accessTokenAgents[0] = result.accessToken;
+        })
+
+        it("should encrypt data with the group key", async () => {
+            opts.meta.accessToken = accessTokenAgents[0];
+            opts.meta.caller = "v1.store";
+            const params = {
+                data: {
+                    "any": "object"
+                }
+            }
+            const result = await  broker.call("groups.encrypt", params, opts)
+            expect(result).toBeDefined();
+            encrypted = result;
+        })
+
+        it("should decrypt data with the group key", async () => {
+            opts.meta.accessToken = accessTokenAgents[0];
+            opts.meta.caller = "v2.store";
+            const params = {
+                encrypted
+            }
+            const result = await  broker.call("groups.decrypt", params, opts)
+            expect(result).toBeDefined();
+            expect(result).toEqual({
+                "any": "object"
+            });
+        });
+
         
         it("should log out the agent", async () => {
             opts = {
@@ -1599,9 +1710,7 @@ describe.each([
         })
 
         it("should delete the selected credentials", async () => {
-            opts.meta.acl = {
-                token: aclTokens[0]
-            };
+            opts.meta = { userToken: userTokens[0], accessToken: accessTokenInternalUsers[0] };
             let params = {
                 agentId: agents[0].uid,
                 credentialsId: agentCredentials[0].uid
@@ -1617,6 +1726,7 @@ describe.each([
         })
    
         it("should fail to log in the agent", async () => {
+            opts.meta.accessToken = accessTokenAgents[0];
             let params = {
                 agentId: agents[0].uid,
                 secret: agentCredentials[0].secret
@@ -1631,7 +1741,7 @@ describe.each([
         })
 
         it("should list the agent in the group", async () => {
-            opts = { meta: { userToken: userTokens[2] } };
+            opts.meta = { userToken: userTokens[2], accessToken: accessTokenInternalUsers[2] };
             let params = {
                 groupId: groups[0].uid
             }
@@ -1645,9 +1755,7 @@ describe.each([
         })
 
         it("should return the event log for the agent", async () => {
-            opts.meta.acl = {
-                token: aclTokens[0]
-            };
+            opts.meta = { userToken: userTokens[0], accessToken: accessTokenInternalUsers[0] };
             let params = {
                 agentId: agents[0].uid,
                 from: new Date(Date.now() - 10000)
@@ -1670,9 +1778,7 @@ describe.each([
         })
 
         it("should delete the agent", async () => {
-            opts.meta.acl = {
-                token: aclTokens[0]
-            };
+            opts.meta = { userToken: userTokens[0], accessToken: accessTokenInternalUsers[0] };
             let params = {
                 agentId: agents[0].uid
             };
@@ -1687,7 +1793,7 @@ describe.each([
         })
 
         it("should list no agents for the group", async () => {
-            opts = { meta: { userToken: userTokens[2] } };
+            opts.meta = { userToken: userTokens[2], accessToken: accessTokenInternalUsers[2] };
             let params = {
                 groupId: groups[0].uid
             }

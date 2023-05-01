@@ -17,7 +17,8 @@
     "test-admin": "jest test/admin.spec.js --no-cache  --config=local.js",
     "test-transit": "jest test/transit.spec.js --no-cache  --config=local.js --forceExit",
     "test-vault": "jest test/vault.spec.js --no-cache  --config=local.js --forceExit",
-    "test-unseal": "jest test/unseal.spec.js --no-cache  --config=local.js"
+    "test-unseal": "jest test/unseal.spec.js --no-cache  --config=local.js",
+    "test-gateway": "jest test/unit/gateway.spec.js --no-cache"
   },
   "jest": {
     "collectCoverageFrom": [
@@ -60,7 +61,8 @@
     "kafkajs": "^2.2.3",
     "leaked-handles": "^5.2.0",
     "moleculer-web": "^0.10.5",
-    "nats": "^2.13.1"
+    "nats": "^2.13.1",
+    "supertest": "^6.3.3"
   },
   "dependencies": {
     "@moleculer/channels": "^0.1.4",
