@@ -107,7 +107,7 @@ describe.each([
             broker.createService(Collect);
             broker.createService(VaultMock);
             await broker.start();
-            //await broker.waitForServices(["users","groups","agents"]);
+            // await broker.waitForServices(["users","groups","agents"]);
             expect(broker).toBeDefined()
         }, 30000);
 
@@ -1311,7 +1311,7 @@ describe.each([
 
         it("should encrypt data with the group key", async () => {
             opts.meta.accessToken = accessToken;
-            opts.meta.caller = "v1.store";
+            opts.caller = "v1.store";
             const params = {
                 data: {
                     "any": "object"
@@ -1324,7 +1324,7 @@ describe.each([
 
         it("should decrypt data with the group key", async () => {
             opts.meta.accessToken = accessToken;
-            opts.meta.caller = "v2.store";
+            opts.caller = "v2.store";
             const params = {
                 encrypted
             }
@@ -1337,7 +1337,7 @@ describe.each([
 
         it("should not decrypt data with the group key", async () => {
             opts.meta.accessToken = accessToken;
-            opts.meta.caller = "v2.other";
+            opts.caller = "v2.other";
             const params = {
                 encrypted
             }
@@ -1373,7 +1373,7 @@ describe.each([
 
         it("it should encrypt and decrypt a stream", async () => {
             opts.meta.accessToken = accessToken;
-            opts.meta.caller = "v2.store";
+            opts.caller = "v2.store";
             let params = {};
             const filePath = "assets/favicon"
             let readStream = fs.createReadStream(`${filePath}.ico`);
@@ -1665,7 +1665,7 @@ describe.each([
 
         it("should encrypt data with the group key", async () => {
             opts.meta.accessToken = accessTokenAgents[0];
-            opts.meta.caller = "v1.store";
+            opts.caller = "v1.store";
             const params = {
                 data: {
                     "any": "object"
@@ -1678,7 +1678,7 @@ describe.each([
 
         it("should decrypt data with the group key", async () => {
             opts.meta.accessToken = accessTokenAgents[0];
-            opts.meta.caller = "v2.store";
+            opts.caller = "v2.store";
             const params = {
                 encrypted
             }

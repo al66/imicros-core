@@ -18,7 +18,8 @@
     "test-transit": "jest test/transit.spec.js --no-cache  --config=local.js --forceExit",
     "test-vault": "jest test/vault.spec.js --no-cache  --config=local.js --forceExit",
     "test-unseal": "jest test/unseal.spec.js --no-cache  --config=local.js",
-    "test-gateway": "jest test/unit/gateway.spec.js --no-cache"
+    "test-gateway": "jest test/unit/gateway.spec.js --no-cache",
+    "test-i-admin": "jest test/integration/admin.spec.js --no-cache  --config=local.js  --forceExit"
   },
   "jest": {
     "collectCoverageFrom": [

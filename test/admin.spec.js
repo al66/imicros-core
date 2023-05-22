@@ -10,6 +10,7 @@ const { Publisher } = require("../lib/provider/publisher");
 const { Keys } = require("../lib/provider/keys");
 const { Encryption } = require("../lib/provider/encryption");
 const { Vault } = require("../lib/provider/vault");
+const { Constants } = require("../lib/util/constants");
 
 // const { logLevel } = require("kafkajs");
 
@@ -18,6 +19,7 @@ const { credentials } = require("./helper/credentials");
 const { VaultMock } = require("./helper/vault");
 const { Collect, events, initEvents } = require("./helper/collect");
 
+const jwt = require("jsonwebtoken");
 const { v4: uuid } = require("uuid");
 
 const timestamp = new Date();
@@ -306,14 +308,18 @@ describe.each([
         });
 
 
-        it("verify access token and retrieve acl data and aclToken", async () => {
-            opts = { meta: { userToken, accessToken } };
+        it("verify access token and retrieve internal access token", async () => {
+            opts = { meta: { userToken, authToken: accessToken } };
             let params = {};
             const result = await  broker.call("groups.verifyAccessToken", params, opts)
             expect(result).toBeDefined();
-            expect(result).toEqual({
-                aclToken: expect.any(String),
-            })
+            expect(result).toEqual(expect.any(String))
+            const decoded = jwt.decode(result);
+            expect(decoded.type).toEqual(Constants.TOKEN_TYPE_ACCESS_INTERNAL);
+            expect(decoded.userId).toEqual(admin.id);
+            expect(decoded.groupId).toEqual(adminGroupId);
+            expect(decoded.role).toEqual("admin");
+            expect(decoded.adminGroup).toEqual(true);
         });
 
     });

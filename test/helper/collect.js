@@ -11,8 +11,14 @@ function initEvents () {
 const Collect = {
     name: "helper.collect",
     events: {
-        "**"(payload, sender, event, ctx) {
-            this.events[event] ? this.events[event].push({payload, sender, event, ctx}) : this.events[event] = [{payload, sender, event, ctx}];
+        "**": {
+            group: "users", // could also be "groups", "agents", "admin"
+            handler (ctx) {
+                const sender = ctx.nodeID;
+                const payload = ctx.params;
+                const event = ctx.eventName;
+                this.events[ctx.eventName] ? this.events[ctx.eventName].push({payload: ctx.params, sender, event, ctx}) : this.events[event] = [{payload, sender, event, ctx}];
+            }
         }
     },
     created () {
