@@ -1,4 +1,7 @@
 # imicros-core
+![NpmLicense](https://img.shields.io/npm/l/imicros-minio.svg)
+![npm](https://img.shields.io/npm/v/imicros-minio.svg)
+
 Baisc services for imicros-backend:
  *  authentification &amp; authorization services for imicros-backend
  *  object store
@@ -9,17 +12,18 @@ Baisc services for imicros-backend:
  *  external mail service with SMTP
 
 ## history
-Replacement of Neo4j based packages
+Replacement of single packages (Neo4j replaced by cassandra)
   * imicros-auth
   * imicros-users
   * imicros-groups
   * imicros-agents
   * imicros-acl
   * imicros-keys
+  * imicros-minio
+  * imicros-mail
 
 Still open:
-  * imicros-minio
-  * imicors-flow
-  * imicros-mail
+  * imicros-flow
+  * imicros-feel
   * imicros-templates
-  * imicors-exchange
+  * imicros-exchange

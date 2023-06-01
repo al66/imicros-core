@@ -21,6 +21,7 @@
     "test-gateway": "jest test/unit/gateway --no-cache",
     "test-store": "jest test/unit/store --runInBand --no-cache  --config=local.js",
     "test-smtp": "jest test/unit/mails/smtp.spec.js --runInBand --no-cache  --config=local.js",
+    "test-feel": "jest test/unit/feel --no-cache  --config=local.js",
     "test-i-admin": "jest test/integration/admin.spec.js --no-cache  --config=local.js  --forceExit"
   },
   "jest": {
@@ -72,10 +73,11 @@
     "axios": "^1.4.0",
     "base32.js": "^0.1.0",
     "cassandra-driver": "^4.6.4",
+    "imicros-feel-interpreter": "^0.0.8",
     "jsonwebtoken": "^9.0.0",
-    "nats": "^2.14.0",
     "minio": "^7.1.1",
     "moleculer": "^0.14.29",
+    "nats": "^2.14.0",
     "nodemailer": "^6.9.3",
     "qrcode": "^1.5.3",
     "rfdc": "^1.3.0",

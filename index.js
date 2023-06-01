@@ -15,6 +15,7 @@ module.exports = {
     StoreService: require("./lib/store/minio"),
     StoreMixin: require("./lib/store/store.mixin"),
     GatewayMixin: require("./lib/gateway/gateway.mixin"),
-    SmtpService: require("./lib/mails/smtp"),
+    FeelService: require("./lib/feel/feel"),
+    SmtpService: require("./lib/mails/smtp")
 };
  

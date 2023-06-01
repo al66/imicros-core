@@ -1,5 +1,7 @@
 "use strict";
 
+const fs = require("fs");
+
 const StoreMixin = (options) => { return {
  
     methods: {
@@ -14,6 +16,14 @@ const StoreMixin = (options) => { return {
         async getObject ({ ctx = null, objectName = null } = {}) {
             if ( !ctx || !objectName ) return null;
             this.logger.debug("getObject", { objectName: objectName });
+
+            // try to read from assets folder
+            if (!this.store[objectName]) {
+                const filePath = `./assets/${ objectName }`;
+                const dataString = fs.readFileSync(filePath).toString();
+                return dataString;
+            }
+
             return this.store[objectName];
         }
     },
