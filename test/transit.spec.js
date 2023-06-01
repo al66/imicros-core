@@ -1,13 +1,9 @@
 "use strict";
 
-require("leaked-handles");
+// require("leaked-handles");
 
 const { ServiceBroker } = require("moleculer");
 const { Transit } = require("../index");
-
-// const crypto = require("crypto");
-
-// const prime = crypto.generatePrimeSync(20);
 
 const options = {
     db: {
@@ -39,6 +35,36 @@ const Listener = {
     }
 }
 
+function sleep(ms) {
+    return new Promise((resolve) => {
+      setTimeout(resolve, ms);
+    });
+}
+
+expect.extend({
+    toContainObject(received, argument) {
+  
+      const pass = this.equals(received, 
+        expect.arrayContaining([
+          expect.objectContaining(argument)
+        ])
+      )
+  
+      if (pass) {
+        return {
+          message: () => (`expected ${this.utils.printReceived(received)} not to contain object ${this.utils.printExpected(argument)}`),
+          pass: true
+        }
+      } else {
+        return {
+          message: () => (`expected ${this.utils.printReceived(received)} to contain object ${this.utils.printExpected(argument)}`),
+          pass: false
+        }
+      }
+    }
+})
+ 
+
 describe("Test transit encryption", () => {
 
     const brokers = [];
@@ -52,35 +78,39 @@ describe("Test transit encryption", () => {
             const broker =  new ServiceBroker({
                 nodeID: nodeID,
                 //transporter: "TCP",
-                transporter: "nats://192.168.2.124:30284",
+                transporter: process.env.NATS_TRANSPORTER,
                 middlewares: [Transit({ options })],
                 logger: console,
-                logLevel: "info" //"debug"
+                logLevel: "info" // "debug"
             });
-            // broker.createService(MasterService);
             if (nodeID !== "first") broker.createService(Listener);
             brokers.push(broker);
         });        
         // Start broker
         await Promise.all(brokers.map(broker => broker.start()));
-        await brokers[0].waitForServices("Listener");
+        /*
         // Start discoverer manually
-        // await brokers[1].registry.discoverer.sendLocalNodeInfo("first");
-        // await brokers[2].registry.discoverer.sendLocalNodeInfo("first");
+        await brokers[1].registry.discoverer.sendLocalNodeInfo("first");
+        await brokers[2].registry.discoverer.sendLocalNodeInfo("first");
 
-        // await brokers[0].registry.discoverer.discoverNode("second");
-        // await brokers[0].registry.discoverer.discoverNode("third");
+        await brokers[0].registry.discoverer.discoverNode("second");
+        await brokers[0].registry.discoverer.discoverNode("third");
+        */
+        // 
+        await brokers[0].waitForServices("Listener");
         expect(brokers.length).toEqual(3);
     }, 10000);
 
     it("it should emit an encrypted event", async () => {
         await brokers[0].emit("my event", { any: "paylaod" });
+        await sleep(200);
         expect(events.length > 0);
+        expect(events).toContainObject({ event: "my event", sender: "first", payload: { any: "paylaod" } });
     })
 
     it("it should stop the broker", async () => {
         expect.assertions(1);
-        await Promise.all(brokers.map(async broker => await broker.stop()));
+        await Promise.all(brokers.map(async broker => broker.stop()));
         expect(brokers).toBeDefined();
     });
 

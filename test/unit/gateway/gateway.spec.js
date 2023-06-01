@@ -1,8 +1,8 @@
 
 const { ServiceBroker } = require("moleculer");
 const ApiService = require("moleculer-web");
-const { Constants } = require("../../lib/util/constants");
-const GatewayMixin = require("../../lib/mixins/gateway");
+const { Constants } = require("../../../lib/util/constants");
+const { GatewayMixin } = require("../../../index");
 const request = require("supertest");
 const jwt 	= require("jsonwebtoken");
 const { v4: uuid } = require("uuid");

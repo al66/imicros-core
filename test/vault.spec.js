@@ -3,7 +3,7 @@
 // require("leaked-handles");
 
 const { ServiceBroker } = require("moleculer");
-const { Vault } = require("../index");
+const { VaultService: Vault } = require("../index");
 
 const { setTimeout } = require("timers/promises");
 

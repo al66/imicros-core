@@ -43,9 +43,20 @@ const agents = [
     }
 ]
 
+let token = {};
+function setToken (key,value) {
+    token[key] = value;
+}
+function getToken (key) {
+    return token[key];
+}
+
+
 module.exports = {
     timestamp,
     users,
     groups,
-    agents
+    agents,
+    setToken,
+    getToken
 };

@@ -2,9 +2,9 @@
 
 const { ServiceBroker } = require("moleculer");
 const { Middleware: ChannelsMiddleware } = require("@moleculer/channels");
-const { Admin } = require("../index");
-const { Users } = require("../index");
-const { Groups } = require("../index");
+const { AdminService } = require("../index");
+const { UsersService } = require("../index");
+const { GroupsService } = require("../index");
 const { Serializer } = require("../lib/provider/serializer");
 const { Publisher } = require("../lib/provider/publisher");
 const { Keys } = require("../lib/provider/keys");
@@ -143,7 +143,7 @@ describe.each([
             });
             broker.createService(Inspect);
             broker.createService({
-                mixins: [Users, database, Publisher, Encryption, Serializer, Keys, Vault], 
+                mixins: [UsersService, database, Publisher, Encryption, Serializer, Keys, Vault], 
                 dependencies: ["v1.vault"],
                 settings: {
                     keys: {
@@ -163,7 +163,7 @@ describe.each([
                 }
             });
             broker.createService({
-                mixins: [Groups, database, Publisher, Encryption, Serializer, Keys, Vault],
+                mixins: [GroupsService, database, Publisher, Encryption, Serializer, Keys, Vault],
                 dependencies: ["v1.vault"],
                 settings: {
                     keys: {
@@ -183,7 +183,7 @@ describe.each([
                 // sequence of providers is important: 
                 // Keys and Serializer must be first, as they are used by Encryption
                 // Database again depends on Encryption
-                mixins: [Admin, database, Publisher, Encryption, Serializer, Keys, Vault], 
+                mixins: [AdminService, database, Publisher, Encryption, Serializer, Keys, Vault], 
                 dependencies: ["v1.vault","groups","users"],
                 settings: {
                     email: admin.email,

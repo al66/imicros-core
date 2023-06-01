@@ -1,9 +1,9 @@
 "use strict";
 
 const { ServiceBroker } = require("moleculer");
-const { Users } = require("../index");
-const { Groups } = require("../index");
-const { Agents } = require("../index");
+const { UsersService: Users } = require("../index");
+const { GroupsService: Groups } = require("../index");
+const { AgentsService: Agents } = require("../index");
 const { Serializer } = require("../lib/provider/serializer");
 const { Publisher } = require("../lib/provider/publisher");
 const { Keys } = require("../lib/provider/keys");
@@ -1370,6 +1370,57 @@ describe.each([
             expect(result).toBeDefined();
             expect(Object.keys(result.keys.store).length === 3).toBe(true);
         })
+
+        it("should encrypt object values with the group key", async () => {
+            opts.meta.accessToken = accessToken;
+            opts.caller = "v1.store";
+            const params = {
+                data: {
+                    att1: "att1",
+                    nested: {
+                        att2: "att2",
+                        password: {
+                            _encrypt: "my super secret"
+                        },
+                        att3: "att3",
+                        nested2: {
+                            _encrypt: {
+                                nested: {
+                                    structure: "any value"
+                                },
+                                att4: "att4"
+                            }
+                        }
+                    }
+                }
+            }
+            const result = await  broker.call("groups.encryptValues", params, opts)
+            expect(result).toBeDefined();
+            // console.log(result)
+            expect(result.nested.password._encrypted).toEqual(expect.any(String));
+            expect(result.nested.password._encrypt).not.toBeDefined();
+            expect(result.nested.nested2._encrypted).toEqual(expect.any(String));
+            expect(result.nested.nested2._encrypt).not.toBeDefined();
+            encrypted = result;
+        });
+
+        it("should decrypt object values with the group key", async () => {
+            opts.meta.accessToken = accessToken;
+            opts.caller = "v1.store";
+            const params = {
+                data: encrypted
+            }
+            const result = await  broker.call("groups.decryptValues", params, opts)
+            // console.log(result);
+            expect(result).toBeDefined();
+            expect(result.nested.password).toEqual("my super secret");
+            expect(result.nested.nested2).toEqual({
+                nested: {
+                    structure: "any value"
+                },
+                att4: "att4"
+            });
+        });
 
         it("it should encrypt and decrypt a stream", async () => {
             opts.meta.accessToken = accessToken;

@@ -1,17 +1,17 @@
 const { ServiceBroker } = require("moleculer");
-const { Users: UsersBasic } = require("../../index");
-const { Groups: GroupsBasic } = require("../../index");
-const { Agents: AgentsBasic } = require("../../index");
+const { UsersService: UsersBasic } = require("../../index");
+const { GroupsService: GroupsBasic } = require("../../index");
+const { AgentsService: AgentsBasic } = require("../../index");
 const { Serializer } = require("../../lib/provider/serializer");
 const { Publisher } = require("../../lib/provider/publisher");
 const { Keys } = require("../../lib/provider/keys");
 const { Encryption } = require("../../lib/provider/encryption");
 const { Vault:VaultProvider } = require("../../lib/provider/vault");
-const { Vault:VaultBasic } = require("../../index");
-const { Admin: AdminBasic } = require("../../index");
+const { VaultService:VaultBasic } = require("../../index");
+const { AdminService: AdminBasic } = require("../../index");
 const { Constants } = require("../../lib/util/constants");
 const ApiService = require("moleculer-web");
-const GatewayMixin = require("../../lib/mixins/gateway");
+const { GatewayMixin}  = require("../../index");
 const { CassandraDB } = require("./db");
 const request = require("supertest");
 

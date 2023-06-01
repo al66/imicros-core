@@ -4,13 +4,17 @@
 "use strict";
 
 module.exports = {
-    Users: require("./lib/services/users"),
-    Groups: require("./lib/services/groups"),
-    Agents: require("./lib/services/agents"),
+    UsersService: require("./lib/services/users"),
+    GroupsService: require("./lib/services/groups"),
+    AgentsService: require("./lib/services/agents"),
     Exceptions: require("./lib/exceptions/exceptions"),
-    Vault: require("./lib/services/vault"),
+    VaultService: require("./lib/services/vault"),
     Transit: require("./lib/middleware/transit"),
-    Admin: require("./lib/services/admin"),
-    Unseal: require("./lib/services/unseal")
+    AdminService: require("./lib/services/admin"),
+    Unseal: require("./lib/services/unseal"),
+    StoreService: require("./lib/store/minio"),
+    StoreMixin: require("./lib/store/store.mixin"),
+    GatewayMixin: require("./lib/gateway/gateway.mixin"),
+    SmtpService: require("./lib/mails/smtp"),
 };
  
