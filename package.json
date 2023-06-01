@@ -22,6 +22,8 @@
     "test-store": "jest test/unit/store --runInBand --no-cache  --config=local.js",
     "test-smtp": "jest test/unit/mails/smtp.spec.js --runInBand --no-cache  --config=local.js",
     "test-feel": "jest test/unit/feel --no-cache  --config=local.js",
+    "test-template": "jest test/unit/templates --no-cache  --config=local.js",
+    "test-map": "jest test/unit/map --no-cache  --config=local.js",
     "test-i-admin": "jest test/integration/admin.spec.js --no-cache  --config=local.js  --forceExit"
   },
   "jest": {
@@ -73,7 +75,9 @@
     "axios": "^1.4.0",
     "base32.js": "^0.1.0",
     "cassandra-driver": "^4.6.4",
+    "handlebars": "^4.7.7",
     "imicros-feel-interpreter": "^0.0.8",
+    "jsonata": "^2.0.3",
     "jsonwebtoken": "^9.0.0",
     "minio": "^7.1.1",
     "moleculer": "^0.14.29",

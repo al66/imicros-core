@@ -3,7 +3,7 @@ const { ServiceBroker } = require("moleculer");
 const { FeelService } = require("../../../index");
 
 // mocks & helpers
-const { StoreMixin } = require("../../mocks/store.mixin");
+const { StoreMixin, put } = require("../../mocks/store.mixin");
 
 const fs = require("fs");
 
@@ -118,6 +118,8 @@ describe("Test context service", () => {
         });
         
         it("it should convert xml", () => {
+            const filePath = "./assets/Sample.dmn";
+            put("Sample.dmn", fs.readFileSync(filePath).toString());
             let params = {
                 objectName: "Sample.dmn"
             };
