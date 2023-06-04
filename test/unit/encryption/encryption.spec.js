@@ -1,11 +1,11 @@
 "use strict";
 
 const { ServiceBroker } = require("moleculer");
-const { Encryption } = require("../lib/util/encryption");
-const { Serializer } = require("../lib/util/serializer");
+const { Encryption } = require("../../../lib/util/encryption");
+const { Serializer } = require("../../../lib/util/serializer");
 
 // helper & mocks
-const { keysMock } = require("./helper/keys");
+const { keysMock } = require("../../helper/keys");
 const { v4: uuid } = require("uuid");
 const fs = require("fs");
 const { pipeline } = require('node:stream/promises');

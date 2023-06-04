@@ -3,7 +3,7 @@
 // require("leaked-handles");
 
 const { ServiceBroker } = require("moleculer");
-const { Transit } = require("../index");
+const { Transit } = require("../../../index");
 
 const options = {
     db: {

@@ -1,10 +1,10 @@
 "use strict";
 
-const { setup, unseal, teardown, admin, getServer } = require("./../helper/node");
+const { setup, unseal, teardown, admin, getServer } = require("../helper/node");
 const { v4: uuid } = require("uuid");
 const request = require("supertest");
 
-const { setToken } = require("./../helper/shared");
+const { setToken } = require("../helper/shared");
 
 jest.setTimeout(50000);
 

@@ -1,6 +1,6 @@
 "use strict";
 
-const { getToken } = require("./../helper/shared");
+const { getToken } = require("../helper/shared");
 
 describe("Test token", () => {
 

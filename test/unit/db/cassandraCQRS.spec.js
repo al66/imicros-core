@@ -2,15 +2,15 @@
 
 const { ServiceBroker } = require("moleculer");
 //const { AclMiddleware } = require("imicros-acl");
-const { DB } = require("../lib/db/cassandraCQRS");
+const { DB } = require("../../../lib/db/cassandraCQRS");
 const { v4: uuid } = require("uuid");
-const { Keys } = require("../lib/util/keys");
-const { Encryption } = require("../lib/util/encryption");
-const { Serializer } = require("../lib/util/serializer");
+const { Keys } = require("../../../lib/util/keys");
+const { Encryption } = require("../../../lib/util/encryption");
+const { Serializer } = require("../../../lib/util/serializer");
 
 // helper & mocks
 // const { credentials } = require("./helper/credentials");
-const { keysMock } = require("./helper/keys");
+const { keysMock } = require("../../helper/keys");
 
 const settings = {
     db: { 

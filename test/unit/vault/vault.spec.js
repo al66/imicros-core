@@ -3,7 +3,7 @@
 // require("leaked-handles");
 
 const { ServiceBroker } = require("moleculer");
-const { VaultService: Vault } = require("../index");
+const { VaultService: Vault } = require("../../../index");
 
 const { setTimeout } = require("timers/promises");
 
@@ -49,7 +49,7 @@ describe("Test master/key service", () => {
                 const broker =  new ServiceBroker({
                     nodeID: nodeID,
                     // transporter: "TCP",
-                    transporter: "nats://192.168.2.124:30284",
+                    transporter: process.env.NATS_TRANSPORTER ||"nats://127.0.0.1:4222",
                     logger: console,
                     logLevel: "info" //"debug"
                 });

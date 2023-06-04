@@ -2,22 +2,22 @@
 
 const { ServiceBroker } = require("moleculer");
 const { Middleware: ChannelsMiddleware } = require("@moleculer/channels");
-const { AdminService } = require("../index");
-const { UsersService } = require("../index");
-const { GroupsService } = require("../index");
-const { Serializer } = require("../lib/provider/serializer");
-const { Publisher } = require("../lib/provider/publisher");
-const { Keys } = require("../lib/provider/keys");
-const { Encryption } = require("../lib/provider/encryption");
-const { Vault } = require("../lib/provider/vault");
-const { Constants } = require("../lib/util/constants");
+const { AdminService } = require("../../../index");
+const { UsersService } = require("../../../index");
+const { GroupsService } = require("../../../index");
+const { Serializer } = require("../../../lib/provider/serializer");
+const { Publisher } = require("../../../lib/provider/publisher");
+const { Keys } = require("../../../lib/provider/keys");
+const { Encryption } = require("../../../lib/provider/encryption");
+const { Vault } = require("../../../lib/provider/vault");
+const { Constants } = require("../../../lib/util/constants");
 
 // const { logLevel } = require("kafkajs");
 
 // helper & mocks
-const { credentials } = require("./helper/credentials");
-const { VaultMock } = require("./helper/vault");
-const { Collect, events, initEvents } = require("./helper/collect");
+const { credentials } = require("../../helper/credentials");
+const { VaultMock } = require("../../helper/vault");
+const { Collect, events, initEvents } = require("../../helper/collect");
 
 const jwt = require("jsonwebtoken");
 const { v4: uuid } = require("uuid");
@@ -81,7 +81,7 @@ const Inspect = {
 }
 
 // Build provider for MemoryDB
-const { DefaultDatabase } = require("../lib/cqrs/cqrs");
+const { DefaultDatabase } = require("../../../lib/cqrs/cqrs");
 const database = new  DefaultDatabase();
 const MemoryDB = {
     async created () {
@@ -90,7 +90,7 @@ const MemoryDB = {
 }
 
 // Build provider for CassandraDB
-const { DB } = require("../lib/db/cassandraCQRS");
+const { DB } = require("../../../lib/db/cassandraCQRS");
 const CassandraDB = {
     async created () {
         this.db = new DB({

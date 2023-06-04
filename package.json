@@ -9,22 +9,23 @@
   "scripts": {
     "test": "jest --coverage --no-cache --silent",
     "test-local": "jest --coverage --runInBand --no-cache --config=local.js --silent --forceExit",
-    "test-cassandra": "jest test/cassandra.spec.js --coverage --no-cache --config=local.js",
-    "test-cassandraKeys": "jest test/cassandraKeys.spec.js --coverage --no-cache --config=local.js",
-    "test-encryption": "jest test/encryption.spec.js --coverage --no-cache --config=local.js",
-    "test-users": "jest test/users.spec.js --runInBand --no-cache --config=local.js",
-    "test-mfa": "jest test/mfa.totp.spec.js --no-cache  --config=local.js",
-    "test-admin": "jest test/admin.spec.js --no-cache  --config=local.js",
-    "test-transit": "jest test/transit.spec.js --runInBand --no-cache  --config=local.js --forceExit",
-    "test-vault": "jest test/vault.spec.js --no-cache  --config=local.js --forceExit",
-    "test-unseal": "jest test/unseal.spec.js --no-cache  --config=local.js",
+    "test-db": "jest test/unit/db --no-cache --config=local.js",
+    "test-encryption": "jest test/unit/encryption --no-cache --config=local.js",
+    "test-users-groups": "jest test/unit/users-groups --runInBand --no-cache --config=local.js",
+    "test-mfa": "jest test/unit/mfa --no-cache",
+    "test-admin": "jest test/unit/admin --no-cache  --config=local.js",
+    "test-transit": "jest test/unit/transit --runInBand --no-cache  --config=local.js --forceExit",
+    "test-vault": "jest test/unit/vault --no-cache  --config=local.js --forceExit",
+    "test-unseal": "jest test/unit/unseal --no-cache",
     "test-gateway": "jest test/unit/gateway --no-cache",
     "test-store": "jest test/unit/store --runInBand --no-cache  --config=local.js",
     "test-smtp": "jest test/unit/mails/smtp.spec.js --runInBand --no-cache  --config=local.js",
     "test-feel": "jest test/unit/feel --no-cache  --config=local.js",
     "test-template": "jest test/unit/templates --no-cache  --config=local.js",
     "test-map": "jest test/unit/map --no-cache  --config=local.js",
-    "test-i-admin": "jest test/integration/admin.spec.js --no-cache  --config=local.js  --forceExit"
+    "test-i-admin": "jest test/integration/01-admin.spec.js --no-cache  --config=local.js  --forceExit",
+    "test-i-newUser": "jest test/integration/02-newUser.spec.js --runInBand --no-cache  --config=local.js",
+    "test-i-store": "jest test/integration/03-store.spec.js --runInBand --no-cache  --config=local.js"
   },
   "jest": {
     "collectCoverageFrom": [

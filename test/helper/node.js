@@ -12,8 +12,11 @@ const { AdminService: AdminBasic } = require("../../index");
 const { Constants } = require("../../lib/util/constants");
 const ApiService = require("moleculer-web");
 const { GatewayMixin}  = require("../../index");
+const { Authorized }  = require("../../index");
+const { StoreService: StoreBasic }  = require("../../index");
 const { CassandraDB } = require("./db");
 const request = require("supertest");
+const _ = require("../../lib/util/lodash");
 
 const Gateway = {
     name: "gateway",
@@ -27,6 +30,20 @@ const Gateway = {
             authorization: true
         },
         {
+            path: "/v1/users/me",
+            authorization: true,
+            aliases: {
+                "GET /": "v1.users.get"
+            }
+        },
+        {
+            path: "/v1/users/registerPWA",
+            authorization: false,
+            aliases: {
+                "POST /": "v1.users.registerPWA"
+            }
+        },
+        {
             path: "/v1/users/logInPWA",
             authorization: false,
             aliases: {
@@ -35,67 +52,73 @@ const Gateway = {
         },
         {
             path: "/vault/init",
-
             bodyParsers: {
                 json: true
             },
-            
             authorization: false,
-
             aliases: {
                 "POST /": "v1.vault.init"
             }
         },
         {
             path: "/vault/getToken",
-
             bodyParsers: {
                 json: true
             },
-            
             authorization: false,
-
             aliases: {
                 "POST /": "v1.vault.getToken"
             }
         },
         {
             path: "/vault/verify",
-
             bodyParsers: {
                 json: true
             },
-            
             authorization: false,
-
             aliases: {
                 "POST /": "v1.vault.verify"
             }
         },
         {
             path: "/vault/getSealed",
-
             bodyParsers: {
                 json: true
             },
-            
             authorization: false,
-
             aliases: {
                 "POST /": "v1.vault.getSealed"
             }
         },
         {
             path: "/vault/unseal",
-
             bodyParsers: {
                 json: true
             },
-            
             authorization: false ,
-            
             aliases: {
                 "POST /": "v1.vault.unseal"
+            }
+        },
+        {
+            path: "/v1/store/objects",
+            bodyParsers: {
+                json: false
+            },
+            aliases: {
+                // File upload from HTML form
+                "POST /": "multipart:v1.store.putObject",
+                // File upload from AJAX or cURL
+                "PUT /:objectName": "stream:v1.store.putObject",
+                "GET /:objectName": "v1.store.getObject",
+                "GET /stat/:objectName": "v1.store.statObject",
+                "DELETE /:objectName": "v1.store.removeObject"
+            },
+            authorization: true,
+            //onBeforeCall(ctx, route, req, res) {
+            onBeforeCall(ctx, route, req) {
+                _.set(ctx, "meta.filename",_.get(req,"$params.objectName",req.headers["x-imicros-filename"]));
+                _.set(ctx, "meta.mimetype",req.headers["x-imicros-mimetype"]);
             }
         }],
         services: {
@@ -208,6 +231,17 @@ const Admin = {
     }
 }
 
+const Store = {
+    name: "store",
+    version: "v1",
+    mixins: [StoreBasic],
+    settings: {
+        services: {
+            groups: "v1.groups"
+        }
+    }
+}
+
 const brokers = [];
 let server;
 
@@ -216,7 +250,8 @@ async function setup (nodeID) {
         nodeID: nodeID || "node-1",
         logger: true,
         transporter: process.env.NATS_TRANSPORTER || "nats://localhost:4222",
-        logLevel: "info"
+        logLevel: "info",
+        middlewares: [Authorized({ service: "v1.groups"})]
     });
     const gateway = broker.createService(Gateway);
     server = gateway.server;
@@ -225,6 +260,7 @@ async function setup (nodeID) {
     broker.createService(Agents);
     broker.createService(Groups);
     broker.createService(Admin);
+    broker.createService(Store);
     broker.start();
     await broker.waitForServices(["gateway","v1.vault"]);
     brokers.push(broker);

@@ -1,6 +1,6 @@
 "use strict";
 
-const { Serializer } = require("../lib/util/serializer");
+const { Serializer } = require("../../../lib/util/serializer");
 const fs = require("fs");
 
 //const timestamp = Date.now();
@@ -90,7 +90,7 @@ describe("Test serializer", () => {
     });
 
     it("it should serialize a stream", async () => {
-        let filename = "./test/serializer.test.file.json";
+        let filename = "./test/unit/serializer/serializer.test.file.json";
         let stream = fs.createReadStream(filename);
         let file = fs.readFileSync(filename, "utf8");
         

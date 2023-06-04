@@ -1,16 +1,18 @@
 "use strict";
 
+// TODO move missing tests from groups.class.spe.js to users.spec.js
+
 const { ServiceBroker } = require("moleculer");
-const { Groups } = require("../lib/main/groups");
-const { DB } = require("../lib/db/cassandra");
-const { Keys } = require("../lib/util/keys");
-const { Encryption } = require("../lib/util/encryption");
-const { Serializer } = require("../lib/util/serializer");
+const { Groups } = require("../../../lib/main/groups");
+const { DB } = require("../../../lib/db/cassandra");
+const { Keys } = require("../../../lib/util/keys");
+const { Encryption } = require("../../../lib/util/encryption");
+const { Serializer } = require("../../../lib/util/serializer");
 const { v4: uuid } = require("uuid");
 
 // helper & mocks
-const { credentials } = require("./helper/credentials");
-const { KeysMock } = require("./helper/keys");
+const { credentials } = require("../../helper/credentials");
+const { KeysMock } = require("../../helper/keys");
 const { UserUnvalidToken } = require("../../imicros-users/lib/util/errors");
 
 const settings = {

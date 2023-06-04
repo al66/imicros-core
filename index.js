@@ -19,6 +19,7 @@ module.exports = {
     StoreMixin: require("./lib/store/store.mixin"),
     GatewayMixin: require("./lib/gateway/gateway.mixin"),
     // middlewares
+    Authorized: require("./lib/middleware/acl"),
     Transit: require("./lib/middleware/transit"),
     // others
     Exceptions: require("./lib/exceptions/exceptions"),

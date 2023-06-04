@@ -1,25 +1,25 @@
 "use strict";
 
 const { ServiceBroker } = require("moleculer");
-const { UsersService: Users } = require("../index");
-const { GroupsService: Groups } = require("../index");
-const { AgentsService: Agents } = require("../index");
-const { Serializer } = require("../lib/provider/serializer");
-const { Publisher } = require("../lib/provider/publisher");
-const { Keys } = require("../lib/provider/keys");
-const { Encryption } = require("../lib/provider/encryption");
-const { Vault } = require("../lib/provider/vault");
-const { Constants } = require("../lib/util/constants");
+const { UsersService: Users } = require("../../../index");
+const { GroupsService: Groups } = require("../../../index");
+const { AgentsService: Agents } = require("../../../index");
+const { Serializer } = require("../../../lib/provider/serializer");
+const { Publisher } = require("../../../lib/provider/publisher");
+const { Keys } = require("../../../lib/provider/keys");
+const { Encryption } = require("../../../lib/provider/encryption");
+const { Vault } = require("../../../lib/provider/vault");
+const { Constants } = require("../../../lib/util/constants");
 
 // helper & mocks
-const { VaultMock } = require("./helper/vault");
-const { Collect, events, initEvents } = require("./helper/collect");
-const { users, groups, agents } = require("./helper/shared");
-const { MemoryDB, CassandraDB } = require("./helper/db");
+const { VaultMock } = require("../../helper/vault");
+const { Collect, events, initEvents } = require("../../helper/collect");
+const { users, groups, agents } = require("../../helper/shared");
+const { MemoryDB, CassandraDB } = require("../../helper/db");
 
 const { v4: uuid } = require("uuid");
 const jwt = require("jsonwebtoken");
-const TOTP = require("../lib/mfa/TOTP");
+const TOTP = require("../../../lib/mfa/TOTP");
 const fs = require("fs");
 const { pipeline } = require('node:stream/promises');
 

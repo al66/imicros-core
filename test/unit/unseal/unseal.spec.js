@@ -2,7 +2,7 @@
 
 const { ServiceBroker } = require("moleculer");
 const ApiService = require("moleculer-web");
-const { Unseal } = require("../index");
+const { Unseal } = require("../../../index");
 // const crypto = require("crypto");
 const jwt = require("jsonwebtoken");
 // const util = require("util");
