@@ -6,6 +6,10 @@ function put(objectName, any) {
     store[objectName] = any;
 }
 
+function get(objectName) {
+    return store[objectName];
+}
+
 const StoreMixin = (options) => { return {
  
     methods: {
@@ -38,5 +42,6 @@ const StoreMixin = (options) => { return {
 
 module.exports = {
     StoreMixin,
-    put
+    put,
+    get
 }

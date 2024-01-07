@@ -2,6 +2,7 @@
 
 const { Encryption: EncryptionClass } = require("../../lib/util/encryption");
 const { Serializer: Base } = require("../../lib/util/serializer");
+const { Constants } = require("../../lib/util/constants");
 const { v4: uuid } = require("uuid");
 const jwt 	= require("jsonwebtoken");
 
@@ -58,7 +59,9 @@ const keys = {
             exp: Date.now() + 1000 * 60 * 60 * 24 * 365
         }
     }
-}
+};
+const accessTokenStore = {};
+const mockSecret = uuid();
 
 const Groups = {
     name: "groups",
@@ -181,7 +184,49 @@ const Groups = {
                this.logger.info("decryptValues", mappedObj);
                return mappedObj;
             }
-         }         
+         },
+         
+         grantServiceAccess: {
+            visibility: "public",
+            params: {
+               groupId: { type: "uuid"},
+               service: { type: "string"}
+            },
+            async handler (ctx) {
+               const events = [];
+               // validate command
+               const regex = new RegExp(`^(v\\d+.)?${ ctx.params.service }$`,"i");
+               if (!ctx.caller.match(regex)) throw new UnvalidRequest({ groupId: ctx.params.groupId, service: ctx.caller, command: "grantServiceAccess"});
+               // return result
+               return true;
+            }
+         },
+
+         requestAccessForService: {
+            visibility: "public",
+            params: {
+               groupId: { type: "uuid" },
+               service: { type: "string" }
+            },
+            async handler (ctx) {
+               // validate query
+               const regex = new RegExp(`^(v\\d+.)?${ ctx.params.service }$`,"i");
+               if (!ctx.caller.match(regex)) throw new UnvalidRequest({ groupId: ctx.params.groupId, service: ctx.caller, query: "requestAccessForService"});
+               // get or build dummy token
+               if (!accessTokenStore[ctx.params.groupId]) {
+                  accessTokenStore[ctx.params.groupId] = jwt.sign({ 
+                     type: Constants.TOKEN_TYPE_ACCESS_INTERNAL, 
+                     nodeID: ctx.broker.nodeID,
+                     groupId: ctx.params.groupId, 
+                     adminGroup: false,
+                     service: ctx.params.service
+                  },mockSecret);    
+               }
+               // return result
+               return { accessToken: accessTokenStore[ctx.params.groupId] };
+            }
+         }
+            
             
     },
 
@@ -193,9 +238,10 @@ const Groups = {
         },
    
         getServiceName(ctx) {
+         //console.log("getServiceName - ctx", { ctx });
             const match = (ctx.caller || "!").match(/(?:\.?)(?<servicename>[0-9a-zA-Z_-]+$)/i);
             if (!match?.groups?.servicename ) {
-               // console.log("getServiceName - UnvalidRequest", { caller: ctx.caller, match });
+               //console.log("getServiceName - UnvalidRequest", { caller: ctx.caller, match });
                this.logger.error("UnvalidRequest", { caller: ctx.caller, match });
                throw new UnvalidRequest({ caller: ctx.caller });
             }

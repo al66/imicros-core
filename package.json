@@ -23,6 +23,7 @@
     "test-feel": "jest test/unit/feel --no-cache  --config=local.js",
     "test-template": "jest test/unit/templates --no-cache  --config=local.js",
     "test-map": "jest test/unit/map --no-cache  --config=local.js",
+    "test-exchange": "jest test/unit/exchange --no-cache  --config=local.js",
     "test-i-admin": "jest test/integration/01-admin.spec.js --no-cache  --config=local.js  --forceExit",
     "test-i-newUser": "jest test/integration/02-newUser.spec.js --runInBand --no-cache  --config=local.js",
     "test-i-store": "jest test/integration/03-store.spec.js --runInBand --no-cache  --config=local.js"

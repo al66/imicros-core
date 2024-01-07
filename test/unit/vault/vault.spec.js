@@ -42,7 +42,7 @@ describe("Test master/key service", () => {
 
     describe("Test vault", () => {
         
-        let shares, part, token, hash;
+        let shares, part, token, hash, signedToken;
         
         it("it should start the brokers with vault service", async () => {
             ["first", "second", "third"].map(nodeID => {
@@ -265,6 +265,37 @@ describe("Test master/key service", () => {
             expect(res).toBeDefined();
             // expect res not to be equal to first hash
             expect(res).not.toEqual(hash);
+        });
+
+        it("it should sign a token", async () => {
+            let params = {
+                payload: {
+                    test: "test",
+                    any: {
+                        deep: {
+                            nested: "value",
+                            object: [1,2,3]
+                        }
+                    }
+                },
+                extension: "other"
+            };
+            let res = await brokers[0].call(serviceNameMaster + ".signToken", params);
+            expect(res).toBeDefined();
+            expect(res.token).toBeDefined();
+            signedToken = res.token;
+            console.log(signedToken);
+        });
+
+        it("it should verify a signed token", async () => {
+            let params = {
+                token: signedToken
+            };
+            let res = await brokers[0].call(serviceNameMaster + ".verifyToken", params);
+            expect(res).toBeDefined();
+            expect(res.payload).toBeDefined();
+            expect(res.payload.test).toBeDefined();
+            expect(res.payload.any.deep.object).toEqual([1,2,3]);
         });
 
         it("should stop the broker", async () => {

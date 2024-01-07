@@ -23,6 +23,40 @@ const TOTP = require("../../../lib/mfa/TOTP");
 const fs = require("fs");
 const { pipeline } = require('node:stream/promises');
 
+const TestService = {
+    name: "test",
+    version: "v1",
+    actions: {
+        grantAccess: {
+            params: {
+                groupId: { type: "uuid" }
+            },
+            async handler(ctx) {
+                let granted = await ctx.call("groups.grantServiceAccess",{
+                    groupId: ctx.params.groupId,
+                    service: this.name
+                },{ meta: ctx.meta });
+                if (!granted) throw new Error("Failed to grant access for service");
+                return true;
+            }
+        },
+        requestAccess: {
+            params: {
+                groupId: { type: "uuid" }
+            },
+            async handler(ctx) {
+                const result = await ctx.call("groups.requestAccessForService",{
+                    groupId: ctx.params.groupId,
+                    service: this.name
+                },{ });
+                if (!result?.accessToken) throw new Error("Failed to request access for service");
+                return result.accessToken;
+            }
+        }
+    }
+};
+
+
 describe.each([
     /*{ database: MemoryDB, name: "MemoryDB" },*/
     { database: CassandraDB, name: "CassandraDB" }
@@ -106,6 +140,7 @@ describe.each([
             })
             broker.createService(Collect);
             broker.createService(VaultMock);
+            broker.createService(TestService);
             await broker.start();
             // await broker.waitForServices(["users","groups","agents"]);
             expect(broker).toBeDefined()
@@ -1241,7 +1276,7 @@ describe.each([
    
     describe("Test groups access", () => {   
 
-        let opts, accessToken, encrypted;
+        let opts, accessToken, encrypted, serviceAccessToken;
 
         beforeAll(async () => {
             await broker.waitForServices(["users","groups"]);
@@ -1441,6 +1476,56 @@ describe.each([
             const decoded = fs.readFileSync(`${filePath}.stream.dec.ico`);
             expect(original.equals(decoded)).toEqual(true);
         });
+
+        it("it should grant access for a service", async () => {
+            opts.meta.accessToken = accessToken;
+            let params = {
+                groupId: groups[0].uid
+            };
+            const result = await  broker.call("v1.test.grantAccess", params, opts);
+            expect(result).toEqual(true);
+        });
+
+        it("it should get access for a service", async () => {
+            opts.meta = {};
+            let params = {
+                groupId: groups[0].uid
+            };
+            const result = await  broker.call("v1.test.requestAccess", params, opts);
+            expect(result).toEqual(expect.any(String))
+            const decoded = jwt.decode(result);
+            //console.log(decoded);
+            expect(decoded.type).toEqual(Constants.TOKEN_TYPE_ACCESS_INTERNAL);
+            expect(decoded.service).toEqual("test");
+            serviceAccessToken = result;
+        });
+
+        it("should encrypt data with the group key", async () => {
+            opts.meta.accessToken = serviceAccessToken;
+            opts.caller = "v1.test";
+            const params = {
+                data: {
+                    "any": "object"
+                }
+            }
+            const result = await  broker.call("groups.encrypt", params, opts)
+            expect(result).toBeDefined();
+            encrypted = result;
+        });
+
+        it("should decrypt data with the group key", async () => {
+            opts.meta.accessToken = serviceAccessToken;
+            opts.caller = "v1.test";
+            const params = {
+                encrypted
+            }
+            const result = await  broker.call("groups.decrypt", params, opts)
+            expect(result).toBeDefined();
+            expect(result).toEqual({
+                "any": "object"
+            });
+        });
+
 
     });
     
@@ -1906,7 +1991,8 @@ describe.each([
                     }, 
                     role: "member"
                 }],
-                keys: expect.any(Object)
+                keys: expect.any(Object),
+                services: expect.any(Object)
             });
 
         })
@@ -2110,7 +2196,8 @@ describe.each([
                     }, 
                     role: "member"
                 }],
-                keys: expect.any(Object)
+                keys: expect.any(Object),
+                services: expect.any(Object)
             });
 
         })
@@ -2161,7 +2248,8 @@ describe.each([
                     }, 
                     role: "admin"
                 }],
-                keys: expect.any(Object)
+                keys: expect.any(Object),
+                services: expect.any(Object)
             });
 
         })

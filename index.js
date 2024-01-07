@@ -15,6 +15,7 @@ module.exports = {
     TemplateService: require("./lib/templates/template"),
     SmtpService: require("./lib/mails/smtp"),
     MapService: require("./lib/map/map.service"),
+    ExchangeService: require("./lib/exchange/exchange"),
     // mixins
     StoreMixin: require("./lib/store/store.mixin"),
     GatewayMixin: require("./lib/gateway/gateway.mixin"),
