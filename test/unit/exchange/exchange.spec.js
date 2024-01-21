@@ -3,7 +3,7 @@
 const { ServiceBroker } = require("moleculer");
 const { ExchangeService } = require("../../../index");
 const { v4: uuid } = require("uuid");
-const { Constants } = require("../../../lib/util/constants");
+const { Constants } = require("../../../lib/classes/util/constants");
 const { Vault } = require("../../../lib/provider/vault");
 const axios = require('axios');
 
@@ -98,9 +98,23 @@ describe("Test exchange service", () => {
                 expect(res).toEqual(true);
             });
         });
+
+        it("it should grant access for local recipient", () => {
+            let params = {};
+            opts = { meta: { user: { id: userId , email: `${userId}@host.com` } , ownerId: localReceivers[0], acl: { ownerId: localReceivers[0] } }};
+            return broker.call("exchange.grantAccess", params, opts).then(res => {
+                expect(res).toBeDefined();
+                expect(res).toEqual(true);
+            });
+        });
+
     });
 
     describe("Test whitelist ", () => {
+
+        beforeEach(() => {
+            opts = { meta: { user: { id: userId , email: `${userId}@host.com` } , ownerId: groupId, acl: { ownerId: groupId } }};
+        });
 
         it("it should return false for unknown local recipient", () => {
             let params = {
@@ -185,8 +199,11 @@ describe("Test exchange service", () => {
 
     describe("Test send message ", () => {
 
+        let notifyCall = {}, notifyEventLocal = {}, notifyEventRemote = {};
+
         beforeEach(() => {
             opts = { meta: { user: { id: userId , email: `${userId}@host.com` } , ownerId: groupId, acl: { ownerId: groupId } }};
+            initEvents();
         });
 
         it("it should throw error - sender not granted access", () => {
@@ -202,7 +219,7 @@ describe("Test exchange service", () => {
                 expect(res.errors).toBeDefined();
                 //console.log(res.errors[0]);
                 expect(res.errors[0].code).toBeDefined();
-                expect(res.errors[0].code).toEqual(Constants.ERROR_NOT_ACCEPTED);
+                expect(res.errors[0].code).toEqual(Constants.ERROR_EXCHANGE_NOT_ACCEPTED);
             });
         });
 
@@ -221,11 +238,21 @@ describe("Test exchange service", () => {
                 expect(stored.message.a.deeplink["#ref"].label).toEqual(params.message.a.deeplink["#ref"].label);
                 expect(stored.message.a.deeplink["#ref"].object).not.toBeDefined();
                 expect(stored.appendix[stored.message.a.deeplink["#ref"].id].object).toEqual(params.message.a.deeplink["#ref"].object);
-                expect(events["ExchangeNotoficationReceived"]).toBeDefined();
-                expect(events["ExchangeNotoficationReceived"].length).toEqual(1);
-                // console.log(events["ExchangeNotoficationReceived"][0]);
-                expect(events["ExchangeNotoficationReceived"][0].payload.notification._encrypted).toBeDefined();
-                });
+                expect(events["ExchangeNotificationReceived"]).toBeDefined();
+                expect(events["ExchangeNotificationReceived"].length).toEqual(1);
+                // console.log(events["ExchangeNotificationReceived"][0]);
+                expect(events["ExchangeNotificationReceived"][0].payload.notification._encrypted).toBeDefined();
+                notifyEventLocal = events["ExchangeNotificationReceived"][0].payload;
+            });
+        });
+
+        it("it should decrypt the notification event", async () => {
+            let params = {
+                data: notifyEventLocal
+            };
+            const event = await broker.call("v1.groups" + ".decryptValues", params, { meta: { acl: { ownerId:localReceivers[0] }, test: { service: "exchange" } } });
+            // console.log(event);
+            notifyEventLocal = event;
         });
 
         it("it should call notify at remote server", () => {
@@ -256,9 +283,91 @@ describe("Test exchange service", () => {
                         fetchToken: expect.any(String)
                     }),
                   );
-                //console.log(callParams);
-                // expect(callParams.receiver).toEqual(params.receiver);
+                // console.log(axios.post.mock.calls[0][1]);
+                notifyCall = axios.post.mock.calls[0][1];
+            });
+        });
 
+        it("it should verify the fetch token", () => {
+            let params = {
+                sender: notifyCall.sender,
+                messageId: notifyCall.messageId,
+                fetchToken: notifyCall.fetchToken
+            };
+            return broker.call("exchange.verify", params, opts).then(res => {
+                expect(res).toBeDefined();
+                expect(res.success).toEqual(true);
+                expect(res.messageId).toEqual(notifyCall.messageId);
+            });
+        });
+
+        it("it should fetch the message", () => {
+            let params = {
+                sender: notifyCall.sender,
+                messageId: notifyCall.messageId,
+                fetchToken: notifyCall.fetchToken
+            };
+            return broker.call("exchange.fetchMessage", params, opts).then(res => {
+                expect(res).toBeDefined();
+                expect(res.a.deeplink["#ref"].id).toBeDefined();
+                expect(res.a.deeplink["#ref"].label).toEqual(message.a.deeplink["#ref"].label);
+                expect(res.a.deeplink["#ref"].object).not.toBeDefined();
+            });
+        });
+
+        it("it should fetch the message locally via get message", () => {
+            let params = {
+                sender: notifyCall.sender,
+                messageId: notifyCall.messageId,
+                fetchToken: notifyCall.fetchToken
+            };
+            return broker.call("exchange.getMessage", params, opts).then(res => {
+                expect(res).toBeDefined();
+                expect(res.a.deeplink["#ref"].id).toBeDefined();
+                expect(res.a.deeplink["#ref"].label).toEqual(message.a.deeplink["#ref"].label);
+                expect(res.a.deeplink["#ref"].object).not.toBeDefined();
+            });
+        });
+
+        it("it should call verify at remote server and then emit event", () => {
+            let params = {
+                sender: remoteReceivers[0],
+                receiver: `${ groupId }#${ remoteHost }`,
+                messageId: uuid(),
+                messageCode: 210,
+                fetchToken: uuid()
+            }  
+            axios.post.mockImplementationOnce(() => Promise.resolve({ status: 200, data: { success: true } }));
+            return broker.call("exchange.notify", params, opts).then(res => {
+                expect(res).toBeDefined();
+                expect(res.success).toEqual(true);
+                expect(res.messageId).toEqual(params.messageId);
+                expect(axios.post).toHaveBeenCalledWith(
+                    `https://${remoteHost}/verify`,
+                    expect.objectContaining({
+                        sender: params.sender,
+                        messageId: params.messageId,
+                        fetchToken: params.fetchToken
+                    }),
+                  );
+                expect(events["ExchangeNotificationReceived"]).toBeDefined();
+                expect(events["ExchangeNotificationReceived"].length).toEqual(1);
+                // console.log(events["ExchangeNotificationReceived"][0]);
+                expect(events["ExchangeNotificationReceived"][0].payload.notification._encrypted).toBeDefined();
+              })
+        });
+
+        it("it should not verify the fetch token, due to an wrong message Id", () => {
+            let params = {
+                sender: notifyCall.sender,
+                messageId: uuid(),
+                fetchToken: notifyCall.fetchToken
+            };
+            return broker.call("exchange.verify", params, opts).then(res => {
+                expect(res).toBeDefined();
+                expect(res.success).toEqual(false);
+                expect(res.errors).toBeDefined();
+                expect(res.errors).toContainEqual({ code: Constants.ERROR_EXCHANGE_VERIFY, message: "failed to verify notification" });
             });
         });
 
@@ -273,7 +382,7 @@ describe("Test exchange service", () => {
                 expect(res.errors).toBeDefined();
                 //console.log(res.errors[0]);
                 expect(res.errors[0].code).toBeDefined();
-                expect(res.errors[0].code).toEqual(Constants.ERROR_NOT_ACCEPTED);
+                expect(res.errors[0].code).toEqual(Constants.ERROR_EXCHANGE_NOT_ACCEPTED);
             });
         });
 

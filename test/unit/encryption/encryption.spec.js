@@ -1,8 +1,8 @@
 "use strict";
 
 const { ServiceBroker } = require("moleculer");
-const { Encryption } = require("../../../lib/util/encryption");
-const { Serializer } = require("../../../lib/util/serializer");
+const { Encryption } = require("../../../lib/classes/util/encryption");
+const { Serializer } = require("../../../lib/classes/util/serializer");
 
 // helper & mocks
 const { keysMock } = require("../../helper/keys");

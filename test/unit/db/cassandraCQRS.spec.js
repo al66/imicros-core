@@ -2,11 +2,11 @@
 
 const { ServiceBroker } = require("moleculer");
 //const { AclMiddleware } = require("imicros-acl");
-const { DB } = require("../../../lib/db/cassandraCQRS");
+const { DB } = require("../../../lib/classes/db/cassandraCQRS");
 const { v4: uuid } = require("uuid");
-const { Keys } = require("../../../lib/util/keys");
-const { Encryption } = require("../../../lib/util/encryption");
-const { Serializer } = require("../../../lib/util/serializer");
+const { Keys } = require("../../../lib/classes/util/keys");
+const { Encryption } = require("../../../lib/classes/util/encryption");
+const { Serializer } = require("../../../lib/classes/util/serializer");
 
 // helper & mocks
 // const { credentials } = require("./helper/credentials");

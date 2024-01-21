@@ -1,6 +1,6 @@
 "use strict";
 
-const { Serializer } = require("../../../lib/util/serializer");
+const { Serializer } = require("../../../lib/classes/util/serializer");
 const fs = require("fs");
 
 //const timestamp = Date.now();

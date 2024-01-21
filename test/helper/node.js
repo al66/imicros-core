@@ -9,14 +9,14 @@ const { Encryption } = require("../../lib/provider/encryption");
 const { Vault:VaultProvider } = require("../../lib/provider/vault");
 const { VaultService:VaultBasic } = require("../../index");
 const { AdminService: AdminBasic } = require("../../index");
-const { Constants } = require("../../lib/util/constants");
+const { Constants } = require("../../lib/classes/util/constants");
 const ApiService = require("moleculer-web");
 const { GatewayMixin}  = require("../../index");
 const { Authorized }  = require("../../index");
 const { StoreService: StoreBasic }  = require("../../index");
 const { CassandraDB } = require("./db");
 const request = require("supertest");
-const _ = require("../../lib/util/lodash");
+const _ = require("../../lib/modules/util/lodash");
 
 const Gateway = {
     name: "gateway",

@@ -1,8 +1,8 @@
 "use strict";
 
-const { Encryption: EncryptionClass } = require("../../lib/util/encryption");
-const { Serializer: Base } = require("../../lib/util/serializer");
-const { Constants } = require("../../lib/util/constants");
+const { Encryption: EncryptionClass } = require("../../lib/classes/util/encryption");
+const { Serializer: Base } = require("../../lib/classes/util/serializer");
+const { Constants } = require("../../lib/classes/util/constants");
 const { v4: uuid } = require("uuid");
 const jwt 	= require("jsonwebtoken");
 
@@ -32,7 +32,7 @@ const {
     GroupDeletionCanceled,
     GroupDeletionConfirmed,
     GroupDeleted
- } = require("../../lib/events/events");
+ } = require("../../lib/classes/events/events");
  
  const { 
     GroupAlreadyExists,
@@ -47,7 +47,7 @@ const {
     UserNotInvited,
     UnvalidRequest,
     ServiceAccessNotAllowed,
- } = require("../../lib/exceptions/exceptions");
+ } = require("../../lib/classes/exceptions/exceptions");
  
 
 const defaultKey = uuid();
@@ -169,10 +169,11 @@ const Groups = {
                data: { type: "object" }
             },
             async handler (ctx) {
-               this.logger.info("call decryptValues", ctx.params.data);
+               this.logger.info("call decryptValues", ctx.params.data, ctx.meta);
                const { decoded: access } = await this.getAccess(ctx);
                const groupId = access?.groupId || ctx.meta?.acl?.ownerId;
-               const keyProvider = this.buildKeyProvider({ keys, owner: groupId, service: this.getServiceName(ctx) });
+               console.log(ctx.meta);
+               const keyProvider = this.buildKeyProvider({ keys, owner: groupId, service: ctx.meta?.test?.service || this.getServiceName(ctx) });
                //
                const encryption = new EncryptionClass({
                   logger: this.broker.logger,

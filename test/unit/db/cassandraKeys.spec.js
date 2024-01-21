@@ -1,7 +1,7 @@
 "use strict";
 
 const { ServiceBroker } = require("moleculer");
-const { DB } = require("../../../lib/db/cassandraKeys");
+const { DB } = require("../../../lib/classes/db/cassandraKeys");
 const { v4: uuid } = require("uuid");
 
 const settings = {

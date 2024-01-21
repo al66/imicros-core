@@ -4,7 +4,7 @@ const { setup, unseal, teardown, admin, getServer } = require("../helper/node");
 const { v4: uuid } = require("uuid");
 const request = require("supertest");
 const { users } = require("../helper/shared");
-const { Constants } = require("../../lib/util/constants");
+const { Constants } = require("../../lib/classes/util/constants");
 
 const jwt 	= require("jsonwebtoken");
 

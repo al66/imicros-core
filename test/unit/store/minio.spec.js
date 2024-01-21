@@ -62,6 +62,8 @@ describe("Test store service", () => {
 
     describe("Test object functions", () => {
 
+        const collectionCount = 100;
+
         it("it should put an object", () => {
             let opts = { meta: { acl: { ownerId: groups[0].uid } } };
             let fstream = fs.createReadStream("assets/imicros.png");
@@ -241,6 +243,38 @@ describe("Test store service", () => {
             });
         });
 
+        it("it should put an collection of objects and get back the collection", async () => {
+            let opts = { meta: { acl: { ownerId: groups[0].uid } } };
+            let calls = [];
+            // console.log("put collection objects");
+            console.time("put collection");
+            for (let i=0; i<collectionCount; i++) {
+                let params = {
+                    objectName: "collection/collection object" + i,
+                    value: { 
+                        costcenter: "cc" + i,
+                        owner: "owner" + i,
+                    }      
+                };
+                calls.push(broker.call("minio.put", params, opts));
+            }
+            await Promise.all(calls);
+            console.timeEnd("put collection");
+            // console.log("get collection objects");
+            console.time("get collection");
+            let params = {
+                path: "collection/"
+            };
+            return broker.call("minio.getCollection", params, opts).then(res => {
+                console.timeEnd("get collection");
+                expect(res).toBeDefined();
+                for (let i=0; i<collectionCount; i++) {
+                    expect(res["collection/collection object" + i]).toEqual({ costcenter: "cc" +i , owner: "owner"+i });
+                }
+                // console.log(res);
+            });
+        });
+
         it("it should put a boolean", () => {
             let opts = { meta: { acl: { ownerId: groups[0].uid } } };
             let params = {
@@ -305,6 +339,22 @@ describe("Test store service", () => {
             });
             
         });
+
+        it("it should remove the collection objects", () => {
+            let opts = { meta: { acl: { ownerId: groups[0].uid } } };
+            let params = {
+                objectsList: []      
+            };
+            for (let i=0; i<collectionCount; i++) {
+                params.objectsList.push("collection/collection object" + i);
+            }
+            return broker.call("minio.removeObjects", params, opts).then(res => {
+                expect(res).toBeDefined();
+                expect(res).toEqual(true);
+            });
+            
+        });
+
         
     });
 

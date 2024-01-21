@@ -1,6 +1,6 @@
 "use strict";
 
-const TOTP = require("../../../lib/mfa/TOTP");
+const TOTP = require("../../../lib/modules/mfa/totp");
 const base32 = require("base32.js");
 // const qrcode = require("qrcode");
 

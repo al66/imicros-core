@@ -1,5 +1,5 @@
 const { ServiceBroker } = require("moleculer");
-const { DB } = require("../../../lib/db/cassandraExchange");
+const { DB } = require("../../../lib/classes/db/cassandraExchange");
 const { v4: uuid } = require("uuid");
 const { createHash } = require('crypto');
 

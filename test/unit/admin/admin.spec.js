@@ -10,7 +10,7 @@ const { Publisher } = require("../../../lib/provider/publisher");
 const { Keys } = require("../../../lib/provider/keys");
 const { Encryption } = require("../../../lib/provider/encryption");
 const { Vault } = require("../../../lib/provider/vault");
-const { Constants } = require("../../../lib/util/constants");
+const { Constants } = require("../../../lib/classes/util/constants");
 
 // const { logLevel } = require("kafkajs");
 
@@ -81,7 +81,7 @@ const Inspect = {
 }
 
 // Build provider for MemoryDB
-const { DefaultDatabase } = require("../../../lib/cqrs/cqrs");
+const { DefaultDatabase } = require("../../../lib/classes/cqrs/cqrs");
 const database = new  DefaultDatabase();
 const MemoryDB = {
     async created () {
@@ -90,7 +90,7 @@ const MemoryDB = {
 }
 
 // Build provider for CassandraDB
-const { DB } = require("../../../lib/db/cassandraCQRS");
+const { DB } = require("../../../lib/classes/db/cassandraCQRS");
 const CassandraDB = {
     async created () {
         this.db = new DB({

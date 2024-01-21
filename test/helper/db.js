@@ -1,7 +1,7 @@
 "use strict";
 
 // Build provider for MemoryDB
-const { DefaultDatabase } = require("../../lib/cqrs/cqrs");
+const { DefaultDatabase } = require("../../lib/classes/cqrs/cqrs");
 const database = new  DefaultDatabase();
 const MemoryDB = {
     async created () {
@@ -10,7 +10,7 @@ const MemoryDB = {
 }
 
 // Build provider for CassandraDB
-const { DB } = require("../../lib/db/cassandraCQRS");
+const { DB } = require("../../lib/classes/db/cassandraCQRS");
 const CassandraDB = {
     async created () {
         this.db = new DB({

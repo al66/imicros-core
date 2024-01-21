@@ -9,7 +9,7 @@ const { Publisher } = require("../../../lib/provider/publisher");
 const { Keys } = require("../../../lib/provider/keys");
 const { Encryption } = require("../../../lib/provider/encryption");
 const { Vault } = require("../../../lib/provider/vault");
-const { Constants } = require("../../../lib/util/constants");
+const { Constants } = require("../../../lib/classes/util/constants");
 
 // helper & mocks
 const { VaultMock } = require("../../helper/vault");
@@ -19,7 +19,7 @@ const { MemoryDB, CassandraDB } = require("../../helper/db");
 
 const { v4: uuid } = require("uuid");
 const jwt = require("jsonwebtoken");
-const TOTP = require("../../../lib/mfa/TOTP");
+const TOTP = require("../../../lib/modules/mfa/totp");
 const fs = require("fs");
 const { pipeline } = require('node:stream/promises');
 

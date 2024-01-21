@@ -9,22 +9,22 @@ module.exports = {
     GroupsService: require("./lib/services/groups"),
     AgentsService: require("./lib/services/agents"),
     VaultService: require("./lib/services/vault"),
-    StoreService: require("./lib/store/minio"),
+    StoreService: require("./lib/services/minio"),
     AdminService: require("./lib/services/admin"),
-    FeelService: require("./lib/feel/feel"),
-    TemplateService: require("./lib/templates/template"),
-    SmtpService: require("./lib/mails/smtp"),
-    MapService: require("./lib/map/map.service"),
-    ExchangeService: require("./lib/exchange/exchange"),
+    FeelService: require("./lib/services/feel"),
+    TemplateService: require("./lib/services/template"),
+    SmtpService: require("./lib/services/smtp"),
+    MapService: require("./lib/services/map"),
+    ExchangeService: require("./lib/services/exchange"),
     // mixins
-    StoreMixin: require("./lib/store/store.mixin"),
-    GatewayMixin: require("./lib/gateway/gateway.mixin"),
+    StoreMixin: require("./lib/mixins/store.mixin"),
+    GatewayMixin: require("./lib/mixins/gateway.mixin"),
     // middlewares
     Authorized: require("./lib/middleware/acl"),
     Transit: require("./lib/middleware/transit"),
     // others
-    Exceptions: require("./lib/exceptions/exceptions"),
+    Exceptions: require("./lib/classes/exceptions/exceptions"),
     Unseal: require("./lib/services/unseal"),
-    Map: require("./lib/map/map").Map
+    Map: require("./lib/classes/map/map").Map
 };
  
