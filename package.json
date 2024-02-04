@@ -20,6 +20,7 @@
     "test-gateway": "jest test/unit/gateway --no-cache",
     "test-store": "jest test/unit/store --runInBand --no-cache  --config=local.js",
     "test-store-only": "jest test/unit/store/minio.spec.js --runInBand --no-cache  --config=local.js",
+    "test-store-mock": "jest test/unit/store/mock.spec.js --runInBand --no-cache  --config=local.js",
     "test-smtp": "jest test/unit/mails/smtp.spec.js --runInBand --no-cache  --config=local.js",
     "test-feel": "jest test/unit/feel --no-cache  --config=local.js",
     "test-template": "jest test/unit/templates --no-cache  --config=local.js",

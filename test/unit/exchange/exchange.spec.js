@@ -5,15 +5,19 @@ const { ExchangeService } = require("../../../index");
 const { v4: uuid } = require("uuid");
 const { Constants } = require("../../../lib/classes/util/constants");
 const { Vault } = require("../../../lib/provider/vault");
+const { Store } = require("../../../lib/provider/store");
 const axios = require('axios');
 
 // helper & mocks
 //const { Agents } = require("../../helper/agents");
 const { credentials } = require("../../helper/credentials");
-const { StoreMixin, put, get } = require("../../mocks/store.mixin");
+// const { StoreMixin, put, get, getStore } = require("../../mocks/store.mixin");
+const { StoreServiceMock, put, get } = require("../../mocks/store");
 const { Collect, events, initEvents } = require("../../helper/collect");
 const { Groups } = require("../../mocks/groups");
 const { VaultMock } = require("../../helper/vault");
+const { setTimeout } = require("timers/promises");
+const { Readable } = require("stream");
 
 // mock axios
 jest.mock("axios");
@@ -56,13 +60,14 @@ describe("Test exchange service", () => {
         it("it should start the broker", async () => {
             broker = new ServiceBroker({
                 logger: console,
-                logLevel: "debug" // "info" //"debug"
+                logLevel: "debug" // "error" // "info" // "debug"
             });
             service = await broker.createService({
                 name: "exchange",
                 //mixins: [Store()],
-                mixins: [Vault, ExchangeService, StoreMixin()],
-                dependencies: ["v1.groups"],
+                // Sequence of mixins is important
+                mixins: [ExchangeService, Store, Vault],
+                dependencies: ["minio","v1.groups"],
                 settings: { 
                     db: {
                         contactPoints: process.env.CASSANDRA_CONTACTPOINTS || "127.0.0.1", 
@@ -78,7 +83,7 @@ describe("Test exchange service", () => {
                 }    
             });
             // Start additional services
-            [Groups, VaultMock,Collect].map(service => { return broker.createService(service); }); 
+            [Groups, VaultMock, StoreServiceMock, Collect].map(service => { return broker.createService(service); }); 
             await broker.start();
             expect(service).toBeDefined();
         });
@@ -199,7 +204,7 @@ describe("Test exchange service", () => {
 
     describe("Test send message ", () => {
 
-        let notifyCall = {}, notifyEventLocal = {}, notifyEventRemote = {};
+        let notifyCall = {}, notifyEventLocal = {}, notifyEventRemote = {}, messageLocal;
 
         beforeEach(() => {
             opts = { meta: { user: { id: userId , email: `${userId}@host.com` } , ownerId: groupId, acl: { ownerId: groupId } }};
@@ -228,11 +233,11 @@ describe("Test exchange service", () => {
                 receiver: localReceivers[0],
                 message
             };
-            return broker.call("exchange.sendMessage", params, opts).then(res => {
+            return broker.call("exchange.sendMessage", params, opts).then(async res => {
                 expect(res).toBeDefined();
                 expect(res.success).toEqual(true);
                 expect(res.messageId).toBeDefined();
-                const stored = get(`~exchange/${res.messageId}.message`);
+                const stored = await get(groupId,`~exchange/${res.messageId}.message`);
                 expect(stored).toBeDefined();
                 expect(stored.message.a.deeplink["#ref"].id).toBeDefined();
                 expect(stored.message.a.deeplink["#ref"].label).toEqual(params.message.a.deeplink["#ref"].label);
@@ -255,6 +260,38 @@ describe("Test exchange service", () => {
             notifyEventLocal = event;
         });
 
+        it(("it should fetch the message from local sender"), async () => {
+            let params = {
+                sender: notifyEventLocal.notification.sender,
+                messageId: notifyEventLocal.notification.messageId,
+                fetchToken: notifyEventLocal.notification.fetchToken
+            };
+            const message = await broker.call("exchange.getMessage", params, opts);
+            expect(message).toBeDefined();
+            expect(message.a.deeplink["#ref"].id).toBeDefined();
+            expect(message.a.deeplink["#ref"].label).toEqual(message.a.deeplink["#ref"].label);
+            expect(message.a.deeplink["#ref"].object).not.toBeDefined();
+            messageLocal = message;
+        });
+
+        it(("it should fetch the appendix from local sender"), async () => {
+            let params = {
+                sender: notifyEventLocal.notification.sender,
+                messageId: notifyEventLocal.notification.messageId,
+                appendixId: messageLocal.a.deeplink["#ref"].id,
+                fetchToken: notifyEventLocal.notification.fetchToken,
+                path: "path/to/received/appendix"
+            };
+            const [senderId, senderUrl] = params.sender.split("#");
+            put(senderId,"my/deep/path/object1.txt","any txt content");
+            const result = await broker.call("exchange.getAppendix", params, opts);
+            expect(result).toBeDefined();
+            expect(result.success).toEqual(true);
+            const received = await get(groupId,"path/to/received/appendix"); 
+            expect(received).toBeDefined();
+            expect(received).toEqual("any txt content");
+        });
+
         it("it should call notify at remote server", () => {
             let params = {
                 receiver: remoteReceivers[0],
@@ -263,11 +300,11 @@ describe("Test exchange service", () => {
             let callParams;
             axios.post.mockImplementationOnce((url,data) => { callParams = data; return Promise.resolve({ status: 200, data: { success: true } }); });
             //axios.post.mockResolvedValue({ status: 200, data: { success: true } });
-            return broker.call("exchange.sendMessage", params, opts).then(res => {
+            return broker.call("exchange.sendMessage", params, opts).then(async res => {
                 expect(res).toBeDefined();
                 expect(res.success).toEqual(true);
                 expect(res.messageId).toBeDefined();
-                const stored = get(`~exchange/${res.messageId}.message`);
+                const stored = await get(groupId,`~exchange/${res.messageId}.message`);
                 expect(stored).toBeDefined();
                 expect(stored.message.a.deeplink["#ref"].id).toBeDefined();
                 expect(stored.message.a.deeplink["#ref"].label).toEqual(params.message.a.deeplink["#ref"].label);
@@ -354,8 +391,64 @@ describe("Test exchange service", () => {
                 expect(events["ExchangeNotificationReceived"].length).toEqual(1);
                 // console.log(events["ExchangeNotificationReceived"][0]);
                 expect(events["ExchangeNotificationReceived"][0].payload.notification._encrypted).toBeDefined();
+                notifyEventRemote = {
+                    groupId, 
+                    notification: { 
+                        fetchToken: params.fetchToken,
+                        messageId: params.messageId, 
+                        sender: params.sender, 
+                        receiverId: groupId
+                    }
+                };
               })
         });
+
+        it("it should call fetch message at remote server", async () => {
+            let params = {
+                sender: remoteReceivers[0],
+                messageId: uuid(),
+                fetchToken: uuid()
+            }  
+            axios.post.mockImplementationOnce(() => Promise.resolve({ status: 200, data: { any: "content" } }));
+            const result = await broker.call("exchange.getMessage", params, opts);
+            expect(result).toBeDefined();
+            expect(result.any).toEqual("content");
+            expect(axios.post).toHaveBeenCalledWith(
+                `https://${remoteHost}/fetchMessage`,
+                expect.objectContaining({
+                    sender: params.sender,
+                    messageId: params.messageId,
+                    fetchToken: params.fetchToken
+                }),
+              );
+        });
+
+        it("it should call fetch appendix at remote server", async () => {
+            let params = {
+                sender: remoteReceivers[0],
+                messageId: uuid(),
+                appendixId: uuid(),
+                fetchToken: uuid(),
+                path: "path/to/received/remote/appendix"
+            }   
+            axios.post.mockImplementationOnce(() => Promise.resolve({ status: 200, data: Readable.from("any content from remote server") }));
+            const result = await broker.call("exchange.getAppendix", params, opts);
+            expect(result).toBeDefined();
+            expect(result.success).toEqual(true);
+            expect(axios.post).toHaveBeenCalledWith(
+                `https://${remoteHost}/fetchAppendix`,
+                expect.objectContaining({
+                    sender: params.sender,
+                    messageId: params.messageId,
+                    appendixId: params.appendixId,
+                    fetchToken: params.fetchToken
+                }),
+            );
+            const received = await get(groupId,params.path);
+            expect(received).toBeDefined();
+            expect(received).toEqual("any content from remote server");
+        });
+
 
         it("it should not verify the fetch token, due to an wrong message Id", () => {
             let params = {
@@ -385,8 +478,6 @@ describe("Test exchange service", () => {
                 expect(res.errors[0].code).toEqual(Constants.ERROR_EXCHANGE_NOT_ACCEPTED);
             });
         });
-
-
 
     });
 
