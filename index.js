@@ -16,8 +16,11 @@ module.exports = {
     SmtpService: require("./lib/services/smtp"),
     MapService: require("./lib/services/map"),
     ExchangeService: require("./lib/services/exchange"),
+    // provider
+    StoreProvider: require("./lib/provider/store").StoreProvider,
+    VaultProvider: require("./lib/provider/vault").VaultProvider,
+    GroupsProvider: require("./lib/provider/groups").GroupsProvider,
     // mixins
-    StoreMixin: require("./lib/mixins/store.mixin"),
     GatewayMixin: require("./lib/mixins/gateway.mixin"),
     // middlewares
     Authorized: require("./lib/middleware/acl"),

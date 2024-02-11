@@ -1,10 +1,10 @@
 "use strict";
-const { credentials } = require("./credentials");
+const { credentials } = require("../helper/credentials");
 const crypto = require("crypto");
 const jwt = require("jsonwebtoken");
 
 // mock master service
-const VaultMock = {
+const VaultServiceMock = {
     name: "vault",
     version: 1,
     actions: {
@@ -12,7 +12,7 @@ const VaultMock = {
             visibility: "protected",
             params: {
                 key: { type: "string"},
-                extension: { type: "string"}
+                extension: { type: "string", optional: true}
             },
             handler(ctx) {
                 return crypto.createHmac("sha256", this.masterKey+ctx.params.extension)
@@ -51,5 +51,5 @@ const VaultMock = {
 };
 
 module.exports = {
-    VaultMock
+    VaultServiceMock
 };

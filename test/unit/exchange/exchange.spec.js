@@ -4,8 +4,9 @@ const { ServiceBroker } = require("moleculer");
 const { ExchangeService } = require("../../../index");
 const { v4: uuid } = require("uuid");
 const { Constants } = require("../../../lib/classes/util/constants");
-const { Vault } = require("../../../lib/provider/vault");
-const { Store } = require("../../../lib/provider/store");
+const { VaultProvider } = require("../../../lib/provider/vault");
+const { GroupsProvider } = require("../../../lib/provider/groups");
+const { StoreProvider } = require("../../../lib/provider/store");
 const axios = require('axios');
 
 // helper & mocks
@@ -14,8 +15,8 @@ const { credentials } = require("../../helper/credentials");
 // const { StoreMixin, put, get, getStore } = require("../../mocks/store.mixin");
 const { StoreServiceMock, put, get } = require("../../mocks/store");
 const { Collect, events, initEvents } = require("../../helper/collect");
-const { Groups } = require("../../mocks/groups");
-const { VaultMock } = require("../../helper/vault");
+const { GroupsServiceMock } = require("../../mocks/groups");
+const { VaultServiceMock } = require("../../mocks/vault");
 const { setTimeout } = require("timers/promises");
 const { Readable } = require("stream");
 
@@ -66,24 +67,18 @@ describe("Test exchange service", () => {
                 name: "exchange",
                 //mixins: [Store()],
                 // Sequence of mixins is important
-                mixins: [ExchangeService, Store, Vault],
-                dependencies: ["minio","v1.groups"],
+                mixins: [ExchangeService, StoreProvider, GroupsProvider, VaultProvider],
+                dependencies: ["v1.minio","v1.groups"],
                 settings: { 
                     db: {
                         contactPoints: process.env.CASSANDRA_CONTACTPOINTS || "127.0.0.1", 
                         datacenter: process.env.CASSANDRA_DATACENTER || "datacenter1", 
                         keyspace: process.env.CASSANDRA_KEYSPACE_EXCHANGE || "imicros_exchange" 
-                    },
-                    services: {
-                        groups: "v1.groups"
-                    },
-                    vault: {
-                        service: "v1.vault"
                     }
                 }    
             });
             // Start additional services
-            [Groups, VaultMock, StoreServiceMock, Collect].map(service => { return broker.createService(service); }); 
+            [GroupsServiceMock, VaultServiceMock, StoreServiceMock, Collect].map(service => { return broker.createService(service); }); 
             await broker.start();
             expect(service).toBeDefined();
         });

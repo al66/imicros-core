@@ -9,14 +9,14 @@ const { Serializer } = require("../../../lib/provider/serializer");
 const { Publisher } = require("../../../lib/provider/publisher");
 const { Keys } = require("../../../lib/provider/keys");
 const { Encryption } = require("../../../lib/provider/encryption");
-const { Vault } = require("../../../lib/provider/vault");
+const { VaultProvider } = require("../../../lib/provider/vault");
 const { Constants } = require("../../../lib/classes/util/constants");
 
 // const { logLevel } = require("kafkajs");
 
 // helper & mocks
 const { credentials } = require("../../helper/credentials");
-const { VaultMock } = require("../../helper/vault");
+const { VaultServiceMock } = require("../../mocks/vault");
 const { Collect, events, initEvents } = require("../../helper/collect");
 
 const jwt = require("jsonwebtoken");
@@ -143,7 +143,7 @@ describe.each([
             });
             broker.createService(Inspect);
             broker.createService({
-                mixins: [UsersService, database, Publisher, Encryption, Serializer, Keys, Vault], 
+                mixins: [UsersService, database, Publisher, Encryption, Serializer, Keys, VaultProvider], 
                 dependencies: ["v1.vault"],
                 settings: {
                     keys: {
@@ -163,7 +163,7 @@ describe.each([
                 }
             });
             broker.createService({
-                mixins: [GroupsService, database, Publisher, Encryption, Serializer, Keys, Vault],
+                mixins: [GroupsService, database, Publisher, Encryption, Serializer, Keys, VaultProvider],
                 dependencies: ["v1.vault"],
                 settings: {
                     keys: {
@@ -183,8 +183,8 @@ describe.each([
                 // sequence of providers is important: 
                 // Keys and Serializer must be first, as they are used by Encryption
                 // Database again depends on Encryption
-                mixins: [AdminService, database, Publisher, Encryption, Serializer, Keys, Vault], 
-                dependencies: ["v1.vault","groups","users"],
+                mixins: [AdminService, database, Publisher, Encryption, Serializer, Keys, VaultProvider], 
+                dependencies: ["v1.vault","v1.groups","v1.users"],
                 settings: {
                     email: admin.email,
                     initialPassword: admin.password,
@@ -216,7 +216,7 @@ describe.each([
                 }
             });
             broker.createService(Collect);
-            broker.createService(VaultMock);
+            broker.createService(VaultServiceMock);
             await broker.start();
             expect(broker).toBeDefined()
         }, 30000);
@@ -235,7 +235,7 @@ describe.each([
                 password: admin.password,
                 locale: admin.locale
             };
-            const result = await  broker.call("users.logInPWA", params, opts)
+            const result = await  broker.call("v1.users.logInPWA", params, opts)
             expect(result).toBeDefined();
             expect(result).toEqual({
                 authToken: expect.any(String),
@@ -248,7 +248,7 @@ describe.each([
         it("should list the admin group", async () => {
             opts = { meta: { authToken } };
             let params = {};
-            const result = await  broker.call("users.get", params, opts)
+            const result = await  broker.call("v1.users.get", params, opts)
             expect(result).toBeDefined();
             expect(result.groups[Object.keys(result.groups)[0]]).toBeDefined();
             expect(result.groups[Object.keys(result.groups)[0]]).toEqual({
@@ -264,7 +264,7 @@ describe.each([
         it("should verify the authToken and return userToken for the admin", async () => {
             opts = { meta: { authToken } };
             let params = {};
-            const result = await  broker.call("users.verifyAuthToken", params, opts)
+            const result = await  broker.call("v1.users.verifyAuthToken", params, opts)
             expect(result).toBeDefined();
             userToken = result;
         });
@@ -274,7 +274,7 @@ describe.each([
             let params = {
                 groupId: adminGroupId
             };
-            const result = await  broker.call("groups.requestAccessForMember", params, opts)
+            const result = await  broker.call("v1.groups.requestAccessForMember", params, opts)
             expect(result).toBeDefined();
             expect(result).toEqual({
                 accessToken: expect.any(String),
@@ -287,7 +287,7 @@ describe.each([
             let params = {
                 groupId: adminGroupId
             }
-            const result = await broker.call("groups.get", params, opts);
+            const result = await broker.call("v1.groups.get", params, opts);
             expect(result).toEqual({
                 uid: adminGroupId,
                 createdAt: expect.any(Number),
@@ -311,7 +311,7 @@ describe.each([
         it("verify access token and retrieve internal access token", async () => {
             opts = { meta: { userToken, authToken: accessToken } };
             let params = {};
-            const result = await  broker.call("groups.verifyAccessToken", params, opts)
+            const result = await  broker.call("v1.groups.verifyAccessToken", params, opts)
             expect(result).toBeDefined();
             expect(result).toEqual(expect.any(String))
             const decoded = jwt.decode(result);

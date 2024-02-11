@@ -1,3 +1,5 @@
+const { v4: uuid } = require("uuid");
+
 // ---- CASSANDRA ----
 process.env.CASSANDRA_CONTACTPOINTS = "192.168.2.124";
 process.env.CASSANDRA_DATACENTER = "datacenter1";
@@ -21,6 +23,9 @@ process.env.MINIO_SECRET_KEY = "minio123"; // "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXA
 process.env.MASTER_TOKEN = "074e48c8e3c0bc19f9e22dd7570037392"; //crypto.randomBytes(32).toString("hex");
 // ---- EXCHANGE ----
 process.env.EXCHANGE_URL = "192.168.2.124/api/v1/exchange";
+// ---- SERVICE ID's ----
+process.env.SERVICE_ID_EXCHANGE = uuid()
+
 
 /* Jest config */
 module.exports = {

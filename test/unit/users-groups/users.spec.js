@@ -8,11 +8,12 @@ const { Serializer } = require("../../../lib/provider/serializer");
 const { Publisher } = require("../../../lib/provider/publisher");
 const { Keys } = require("../../../lib/provider/keys");
 const { Encryption } = require("../../../lib/provider/encryption");
-const { Vault } = require("../../../lib/provider/vault");
+const { VaultProvider } = require("../../../lib/provider/vault");
+const { GroupsProvider } = require("../../../lib/provider/groups");
 const { Constants } = require("../../../lib/classes/util/constants");
 
 // helper & mocks
-const { VaultMock } = require("../../helper/vault");
+const { VaultServiceMock } = require("../../mocks/vault");
 const { Collect, events, initEvents } = require("../../helper/collect");
 const { users, groups, agents } = require("../../helper/shared");
 const { MemoryDB, CassandraDB } = require("../../helper/db");
@@ -23,19 +24,19 @@ const TOTP = require("../../../lib/modules/mfa/totp");
 const fs = require("fs");
 const { pipeline } = require('node:stream/promises');
 
+const serviceId = uuid();
 const TestService = {
     name: "test",
     version: "v1",
+    mixins: [GroupsProvider, VaultProvider],
     actions: {
         grantAccess: {
             params: {
                 groupId: { type: "uuid" }
             },
             async handler(ctx) {
-                let granted = await ctx.call("groups.grantServiceAccess",{
-                    groupId: ctx.params.groupId,
-                    service: this.name
-                },{ meta: ctx.meta });
+                let granted = await this.groups.grantServiceAccess({ ctx, serviceId: this.serviceId });
+                console.log("granted", granted);
                 if (!granted) throw new Error("Failed to grant access for service");
                 return true;
             }
@@ -45,14 +46,14 @@ const TestService = {
                 groupId: { type: "uuid" }
             },
             async handler(ctx) {
-                const result = await ctx.call("groups.requestAccessForService",{
-                    groupId: ctx.params.groupId,
-                    service: this.name
-                },{ });
+                const result = await this.groups.requestAccessForService({ groupId: ctx.params.groupId, serviceId: this.serviceId });
                 if (!result?.accessToken) throw new Error("Failed to request access for service");
                 return result.accessToken;
             }
         }
+    },
+    created() {
+        this.serviceId = serviceId;
     }
 };
 
@@ -85,7 +86,7 @@ describe.each([
                 // sequence of providers is important: 
                 // Keys and Serializer must be first, as they are used by Encryption
                 // Database again depends on Encryption
-                mixins: [Users, database, Publisher, Encryption, Serializer, Keys, Vault], 
+                mixins: [Users, database, Publisher, Encryption, Serializer, Keys, VaultProvider], 
                 dependencies: ["v1.vault"],
                 settings: {
                     keys: {
@@ -98,14 +99,11 @@ describe.each([
                     },
                     repository:{
                         snapshotCounter: 2  // new snapshot after 2 new events
-                    },
-                    vault: {
-                        service: "v1.vault"
                     }
                 }
             });
             broker.createService({
-                mixins: [Groups, database, Publisher, Encryption, Serializer, Keys, Vault], 
+                mixins: [Groups, database, Publisher, Encryption, Serializer, Keys, VaultProvider], 
                 dependencies: ["v1.vault"],
                 settings: {
                     keys: {
@@ -115,14 +113,11 @@ describe.each([
                             keyspace: process.env.CASSANDRA_KEYSPACE_AUTH || "imicros_auth",
                             keysTable: "authkeys"
                         }
-                    },
-                    vault: {
-                        service: "v1.vault"
                     }
                 }
             })
             broker.createService({
-                mixins: [Agents, database, Publisher, Encryption, Serializer, Keys, Vault], 
+                mixins: [Agents, database, Publisher, Encryption, Serializer, Keys, VaultProvider], 
                 dependencies: ["v1.vault"],
                 settings: {
                     keys: {
@@ -132,14 +127,11 @@ describe.each([
                             keyspace: process.env.CASSANDRA_KEYSPACE_AUTH || "imicros_auth",
                             keysTable: "authkeys"
                         }
-                    },
-                    vault: {
-                        service: "v1.vault"
                     }
                 }
             })
             broker.createService(Collect);
-            broker.createService(VaultMock);
+            broker.createService(VaultServiceMock);
             broker.createService(TestService);
             await broker.start();
             // await broker.waitForServices(["users","groups","agents"]);
@@ -152,7 +144,7 @@ describe.each([
         let opts, authToken, sessionId, confirmationToken;
 
         beforeAll(async () => {
-            await broker.waitForServices(["users"]);
+            await broker.waitForServices(["v1.users"]);
         })
 
         beforeEach(() => {
@@ -166,7 +158,7 @@ describe.each([
                 password: users[0].password,
                 locale: users[0].locale
             };
-            const result = await  broker.call("users.registerPWA", params, opts)
+            const result = await  broker.call("v1.users.registerPWA", params, opts)
             expect(result.userId).toBeDefined();
             expect(result.userId).toEqual(users[0].uid);
             expect(events["UserWithPWARegistered"]).toBeDefined();
@@ -186,7 +178,7 @@ describe.each([
             };
             expect.assertions(2);
             try {
-                await broker.call("users.registerPWA", params, opts);
+                await broker.call("v1.users.registerPWA", params, opts);
             } catch (err) {
                 expect(err.message).toEqual("UserAlreadyExists");
                 expect(err.email).toEqual(users[0].email);
@@ -202,7 +194,7 @@ describe.each([
             };
             expect.assertions(2);
             try {
-                await broker.call("users.registerPWA", params, opts);
+                await broker.call("v1.users.registerPWA", params, opts);
             } catch (err) {
                 expect(err.message).toEqual("UserAlreadyExists");
                 expect(err.email).toEqual(users[0].email);
@@ -217,7 +209,7 @@ describe.each([
                 password: users[0].password,
                 locale: users[0].locale
             };
-            const result = await  broker.call("users.logInPWA", params, opts)
+            const result = await  broker.call("v1.users.logInPWA", params, opts)
             expect(result).toBeDefined();
             expect(result).toEqual({
                 authToken: expect.any(String),
@@ -231,7 +223,7 @@ describe.each([
         it("should request user confirmation", async () => {
             opts = { meta: { authToken } };
             let params = {};
-            const result = await  broker.call("users.requestConfirmation", params, opts)
+            const result = await  broker.call("v1.users.requestConfirmation", params, opts)
             expect(result).toEqual(true);
             expect(events["UserConfirmationRequested"]).toBeDefined();
             expect(events["UserConfirmationRequested"].length).toEqual(1);
@@ -245,7 +237,7 @@ describe.each([
             let params = {
                 confirmationToken
             };
-            const result = await  broker.call("users.confirm", params, opts)
+            const result = await  broker.call("v1.users.confirm", params, opts)
             expect(result).toEqual(true);
             expect(events["UserConfirmed"]).toBeDefined();
             expect(events["UserConfirmed"].length).toEqual(1);
@@ -260,7 +252,7 @@ describe.each([
                 password: users[1].password,
                 locale: users[1].locale
             };
-            const result = await  broker.call("users.registerPWA", params, opts)
+            const result = await  broker.call("v1.users.registerPWA", params, opts)
             expect(result).toBeDefined();
             expect(result.userId).toBeDefined();
             expect(result.userId).toEqual(users[1].uid);
@@ -274,7 +266,7 @@ describe.each([
                 password: users[1].password,
                 locale: users[1].locale
             };
-            const result = await  broker.call("users.logInPWA", params, opts)
+            const result = await  broker.call("v1.users.logInPWA", params, opts)
             expect(result).toBeDefined();
             expect(result).toEqual({
                 authToken: expect.any(String),
@@ -287,7 +279,7 @@ describe.each([
         it("should request user confirmation for second user", async () => {
             opts = { meta: { authToken } };
             let params = {};
-            const result = await  broker.call("users.requestConfirmation", params, opts)
+            const result = await  broker.call("v1.users.requestConfirmation", params, opts)
             expect(result).toEqual(true);
             expect(events["UserConfirmationRequested"]).toBeDefined();
             expect(events["UserConfirmationRequested"].length).toEqual(1);
@@ -301,7 +293,7 @@ describe.each([
             let params = {
                 confirmationToken
             };
-            const result = await  broker.call("users.confirm", params, opts)
+            const result = await  broker.call("v1.users.confirm", params, opts)
             expect(result).toEqual(true);
             expect(events["UserConfirmed"]).toBeDefined();
             expect(events["UserConfirmed"].length).toEqual(1);
@@ -312,7 +304,7 @@ describe.each([
         it("should generate TOTP", async () => {
             opts = { meta: { authToken } };
             let params = {};
-            const result = await  broker.call("users.generateTOTP", params, opts);
+            const result = await  broker.call("v1.users.generateTOTP", params, opts);
             expect(result).toEqual(true);
             expect(events["UserTOTPGenerated"]).toBeDefined();
             expect(events["UserTOTPGenerated"].length).toEqual(1);
@@ -323,7 +315,7 @@ describe.each([
         it("should retrieve generated TOTP", async () => {
             opts = { meta: { authToken } };
             let params = {};
-            const result = await  broker.call("users.getGeneratedTOTP", params, opts);
+            const result = await  broker.call("v1.users.getGeneratedTOTP", params, opts);
             expect(result).toBeDefined();
             secretsMFA[1] = result;
             // console.log(result);
@@ -338,14 +330,14 @@ describe.each([
             let params = {
                 totp
             };
-            const result = await  broker.call("users.activateTOTP", params, opts);
+            const result = await  broker.call("v1.users.activateTOTP", params, opts);
             expect(result).toEqual(true);
         })
         
         it("should log out second user", async () => {
             opts = { meta: { authToken } };
             let params = {};
-            const result = await  broker.call("users.logOut", params, opts)
+            const result = await  broker.call("v1.users.logOut", params, opts)
             expect(result).toEqual(true);
             expect(events["UserLoggedOut"]).toBeDefined();
             expect(events["UserLoggedOut"].length).toEqual(1);
@@ -362,7 +354,7 @@ describe.each([
                 password: users[3].password,
                 locale: users[3].locale
             };
-            const result = await  broker.call("users.registerPWA", params, opts)
+            const result = await  broker.call("v1.users.registerPWA", params, opts)
             expect(result.userId).toBeDefined();
             expect(result.userId).toEqual(users[3].uid);
         });
@@ -374,7 +366,7 @@ describe.each([
                 email: users[3].email,
                 password: users[3].password
             };
-            const result = await  broker.call("users.logInPWA", params, opts)
+            const result = await  broker.call("v1.users.logInPWA", params, opts)
             expect(result).toBeDefined();
             expect(result).toEqual({
                 authToken: expect.any(String),
@@ -387,7 +379,7 @@ describe.each([
         it("should request user confirmation for third user", async () => {
             opts = { meta: { authToken } };
             let params = {};
-            const result = await  broker.call("users.requestConfirmation", params, opts)
+            const result = await  broker.call("v1.users.requestConfirmation", params, opts)
             expect(result).toEqual(true);
             confirmationToken = events["UserConfirmationRequested"][0].payload.confirmationToken;
         })
@@ -396,14 +388,14 @@ describe.each([
             let params = {
                 confirmationToken
             };
-            const result = await  broker.call("users.confirm", params, opts)
+            const result = await  broker.call("v1.users.confirm", params, opts)
             expect(result).toEqual(true);
         })        
 
         it("should log out third user", async () => {
             opts = { meta: { authToken } };
             let params = {};
-            const result = await  broker.call("users.logOut", params, opts)
+            const result = await  broker.call("v1.users.logOut", params, opts)
             expect(result).toEqual(true);
         })
 
@@ -414,7 +406,7 @@ describe.each([
                 email: users[3].email,
                 password: users[3].password
             };
-            const result = await  broker.call("users.logInPWA", params, opts)
+            const result = await  broker.call("v1.users.logInPWA", params, opts)
             expect(result).toBeDefined();
             expect(result).toEqual({
                 authToken: expect.any(String),
@@ -427,7 +419,7 @@ describe.each([
         it("should verify the authToken and return userToken for third user", async () => {
             opts = { meta: { authToken: authTokens[3] } };
             let params = {};
-            const result = await  broker.call("users.verifyAuthToken", params, opts)
+            const result = await  broker.call("v1.users.verifyAuthToken", params, opts)
             const decoded = jwt.decode(result);
             expect(result).toBeDefined();
             expect(decoded.type).toEqual("userToken");
@@ -449,7 +441,7 @@ describe.each([
         let opts, sessionId, mfaToken;
 
         beforeAll(async () => {
-            await broker.waitForServices(["users"]);
+            await broker.waitForServices(["v1.users"]);
         })
 
         it("should login first user", async () => {
@@ -460,7 +452,7 @@ describe.each([
                 password: users[0].password,
                 locale: users[0].locale
             };
-            const result = await  broker.call("users.logInPWA", params, opts)
+            const result = await  broker.call("v1.users.logInPWA", params, opts)
             expect(result).toBeDefined();
             expect(result).toEqual({
                 authToken: expect.any(String),
@@ -473,7 +465,7 @@ describe.each([
         it("should verify the authToken and return userToken for first user", async () => {
             opts = { meta: { authToken: authTokens[0] } };
             let params = {};
-            const result = await  broker.call("users.verifyAuthToken", params, opts)
+            const result = await  broker.call("v1.users.verifyAuthToken", params, opts)
             const decoded = jwt.decode(result);
             expect(result).toBeDefined();
             expect(decoded.type).toEqual("userToken");
@@ -497,7 +489,7 @@ describe.each([
                 password: users[1].password,
                 locale: users[1].locale
             };
-            const result = await  broker.call("users.logInPWA", params, opts)
+            const result = await  broker.call("v1.users.logInPWA", params, opts)
             expect(result).toBeDefined();
             expect(result).toEqual({
                 mfaToken: expect.any(String),
@@ -515,7 +507,7 @@ describe.each([
                 mfaToken,
                 totp
             };
-            const result = await  broker.call("users.logInTOTP", params, opts)
+            const result = await  broker.call("v1.users.logInTOTP", params, opts)
             expect(result).toBeDefined();
             expect(result).toEqual({
                 authToken: expect.any(String),
@@ -528,7 +520,7 @@ describe.each([
         it("should verify the authToken and return userToken for second user", async () => {
             opts = { meta: { authToken: authTokens[1] } };
             let params = {};
-            const result = await  broker.call("users.verifyAuthToken", params, opts)
+            const result = await  broker.call("v1.users.verifyAuthToken", params, opts)
             const decoded = jwt.decode(result);
             expect(result).toBeDefined();
             expect(decoded.type).toEqual("userToken");
@@ -549,7 +541,7 @@ describe.each([
         let opts, sessionId, resetToken, mfaToken;
 
         beforeAll(async () => {
-            await broker.waitForServices(["users"]);
+            await broker.waitForServices(["v1.users"]);
         })
 
         it("should login the user", async () => {
@@ -560,7 +552,7 @@ describe.each([
                 password: users[0].password,
                 locale: users[0].locale
             };
-            const result = await  broker.call("users.logInPWA", params, opts)
+            const result = await  broker.call("v1.users.logInPWA", params, opts)
             expect(result).toBeDefined();
             expect(result).toEqual({
                 authToken: expect.any(String),
@@ -578,7 +570,7 @@ describe.each([
                 oldPassword,
                 newPassword: users[0].password
             };
-            const result = await  broker.call("users.changePassword", params, opts)
+            const result = await  broker.call("v1.users.changePassword", params, opts)
             expect(result).toEqual(true);
             expect(events["UserPasswordChanged"]).toBeDefined();
             expect(events["UserPasswordChanged"].length).toEqual(1);
@@ -591,7 +583,7 @@ describe.each([
         it("should log out an user", async () => {
             opts = { meta: { authToken: authTokens[0] } };
             let params = {};
-            const result = await  broker.call("users.logOut", params, opts)
+            const result = await  broker.call("v1.users.logOut", params, opts)
             expect(result).toEqual(true);
             expect(events["UserLoggedOut"]).toBeDefined();
             expect(events["UserLoggedOut"].length).toEqual(1);
@@ -609,7 +601,7 @@ describe.each([
             };
             expect.assertions(2);
             try {
-                await broker.call("users.changePassword", params, opts);
+                await broker.call("v1.users.changePassword", params, opts);
             } catch (err) {
                 expect(err.message).toEqual("UnvalidToken");
                 expect(err.token).toEqual(authTokens[0]);
@@ -624,7 +616,7 @@ describe.each([
                 password: users[0].password,
                 locale: users[0].locale
             };
-            const result = await  broker.call("users.logInPWA", params, opts)
+            const result = await  broker.call("v1.users.logInPWA", params, opts)
             expect(result).toBeDefined();
             expect(result).toEqual({
                 authToken: expect.any(String),
@@ -637,7 +629,7 @@ describe.each([
         it("should log out the user", async () => {
             opts = { meta: { authToken: authTokens[0] } };
             let params = {};
-            const result = await  broker.call("users.logOut", params, opts)
+            const result = await  broker.call("v1.users.logOut", params, opts)
             expect(result).toEqual(true);
         })
 
@@ -646,7 +638,7 @@ describe.each([
             let params = { 
                 email: users[0].email
             };
-            const result = await  broker.call("users.requestPasswordReset", params, opts)
+            const result = await  broker.call("v1.users.requestPasswordReset", params, opts)
             expect(result).toEqual(true);
             expect(events["UserPasswordResetRequested"]).toBeDefined();
             expect(events["UserPasswordResetRequested"].length).toEqual(1);
@@ -665,7 +657,7 @@ describe.each([
                 resetToken,
                 newPassword: users[0].password
             };
-            const result = await  broker.call("users.resetPassword", params, opts)
+            const result = await  broker.call("v1.users.resetPassword", params, opts)
             expect(result).toEqual(true);
             expect(events["UserPasswordChanged"]).toBeDefined();
             expect(events["UserPasswordChanged"].length).toEqual(1);
@@ -683,7 +675,7 @@ describe.each([
                 password: users[0].password,
                 locale: users[0].locale
             };
-            const result = await  broker.call("users.logInPWA", params, opts)
+            const result = await  broker.call("v1.users.logInPWA", params, opts)
             expect(result).toBeDefined();
             expect(result).toEqual({
                 authToken: expect.any(String),
@@ -699,7 +691,7 @@ describe.each([
             };
             expect.assertions(2);
             try {
-                await broker.call("users.requestPasswordReset", params, opts);
+                await broker.call("v1.users.requestPasswordReset", params, opts);
             } catch (err) {
                 expect(err.message).toEqual("UnvalidMultiFactorAuthentificationToken");
                 expect(err.token).toEqual(undefined);
@@ -715,7 +707,7 @@ describe.each([
                 email: users[1].email,
                 totp
             };
-            const result = await  broker.call("users.requestPasswordReset", params, opts)
+            const result = await  broker.call("v1.users.requestPasswordReset", params, opts)
             expect(result).toEqual(true);
             expect(events["UserPasswordResetRequested"]).toBeDefined();
             expect(events["UserPasswordResetRequested"].length).toEqual(1);
@@ -734,7 +726,7 @@ describe.each([
             };
             expect.assertions(2);
             try {
-                await broker.call("users.resetPassword", params, opts);
+                await broker.call("v1.users.resetPassword", params, opts);
             } catch (err) {
                 expect(err.message).toEqual("UnvalidMultiFactorAuthentificationToken");
                 expect(err.token).toEqual(undefined);
@@ -752,7 +744,7 @@ describe.each([
                 newPassword: users[1].password,
                 totp
             };
-            const result = await  broker.call("users.resetPassword", params, opts)
+            const result = await  broker.call("v1.users.resetPassword", params, opts)
             expect(result).toEqual(true);
             expect(events["UserPasswordChanged"]).toBeDefined();
             expect(events["UserPasswordChanged"].length).toEqual(1);
@@ -770,7 +762,7 @@ describe.each([
                 password: users[1].password,
                 locale: users[1].locale
             };
-            const result = await  broker.call("users.logInPWA", params, opts)
+            const result = await  broker.call("v1.users.logInPWA", params, opts)
             expect(result).toBeDefined();
             expect(result).toEqual({
                 mfaToken: expect.any(String),
@@ -788,7 +780,7 @@ describe.each([
                 mfaToken,
                 totp
             };
-            const result = await  broker.call("users.logInTOTP", params, opts)
+            const result = await  broker.call("v1.users.logInTOTP", params, opts)
             expect(result).toBeDefined();
             expect(result).toEqual({
                 authToken: expect.any(String),
@@ -805,7 +797,7 @@ describe.each([
         let opts, sessionId, confirmationToken, invitationToken;
 
         beforeAll(async () => {
-            await broker.waitForServices(["users","groups"]);
+            await broker.waitForServices(["v1.users","v1.groups"]);
         })
 
         beforeEach(() => {
@@ -821,7 +813,7 @@ describe.each([
                 groupId: groups[0].uid,
                 label: groups[0].label,
             }
-            const result = await  broker.call("groups.create", params, opts)
+            const result = await  broker.call("v1.groups.create", params, opts)
             expect(result).toEqual(true);
             expect(events["GroupCreated"]).toBeDefined();
             expect(events["GroupCreated"].length).toEqual(1);
@@ -850,7 +842,7 @@ describe.each([
             }
             expect.assertions(2);
             try {
-                await broker.call("groups.create", params, opts);
+                await broker.call("v1.groups.create", params, opts);
             } catch (err) {
                 expect(err.message).toEqual("GroupAlreadyExists");
                 expect(err.uid).toEqual(groups[0].uid);
@@ -861,7 +853,7 @@ describe.each([
             let params = {
                 groupId: groups[0].uid
             }
-            const result = await broker.call("groups.get", params, opts);
+            const result = await broker.call("v1.groups.get", params, opts);
             expect(result).toEqual({
                 uid: groups[0].uid,
                 createdAt: expect.any(Number),
@@ -888,7 +880,7 @@ describe.each([
             }
             expect.assertions(2);
             try {
-                await broker.call("groups.get", params, opts);
+                await broker.call("v1.groups.get", params, opts);
             } catch (err) {
                 expect(err.message).toEqual("OnlyAllowedForMembers");
                 expect(err.groupId).toEqual(groups[0].uid);
@@ -898,7 +890,7 @@ describe.each([
         it("should list the group for creating user with admin role", async () => {
             opts = { meta: { authToken: authTokens[0] } };
             let params = {};
-            const result = await  broker.call("users.get", params, opts)
+            const result = await  broker.call("v1.users.get", params, opts)
             expect(result).toBeDefined();
             expect(result.groups[groups[0].uid]).toEqual(
                 expect.objectContaining({
@@ -915,7 +907,7 @@ describe.each([
                 groupId: groups[0].uid,
                 label: groups[0].label
             }
-            const result = await broker.call("groups.rename", params, opts);
+            const result = await broker.call("v1.groups.rename", params, opts);
             expect(result).toEqual(true);
             expect(events["GroupRenamed"]).toBeDefined();
             expect(events["GroupRenamed"].length).toEqual(1);
@@ -938,7 +930,7 @@ describe.each([
             }
             expect.assertions(2);
             try {
-                await broker.call("groups.rename", params, opts);
+                await broker.call("v1.groups.rename", params, opts);
             } catch (err) {
                 expect(err.message).toEqual("RequiresAdminRole");
                 expect(err.groupId).toEqual(groups[0].uid);
@@ -950,7 +942,7 @@ describe.each([
                 groupId: groups[0].uid,
                 email: users[2].email
             }
-            const result = await broker.call("groups.inviteUser", params, opts);
+            const result = await broker.call("v1.groups.inviteUser", params, opts);
             expect(result).toEqual(true);
             expect(events["UserInvited"]).toBeDefined();
             expect(events["UserInvited"].length).toEqual(1);
@@ -971,7 +963,7 @@ describe.each([
                 password: users[2].password,
                 locale: users[2].locale
             };
-            const result = await  broker.call("users.registerPWA", params, opts)
+            const result = await  broker.call("v1.users.registerPWA", params, opts)
             expect(result).toBeDefined();
             expect(result.userId).toBeDefined();
             users[2].uid = result.userId
@@ -985,7 +977,7 @@ describe.each([
                 password: users[2].password,
                 locale: users[2].locale
             };
-            const result = await  broker.call("users.logInPWA", params, opts)
+            const result = await  broker.call("v1.users.logInPWA", params, opts)
             expect(result).toBeDefined();
             expect(result).toEqual({
                 authToken: expect.any(String),
@@ -998,7 +990,7 @@ describe.each([
         it("should list the invitation for the invited user", async () => {
             opts = { meta: { authToken: authTokens[2] } };
             let params = {};
-            const result = await  broker.call("users.get", params, opts)
+            const result = await  broker.call("v1.users.get", params, opts)
             expect(result).toBeDefined();
             expect(result.invitations[groups[0].uid]).toBeDefined();
             expect(result.invitations[groups[0].uid]).toEqual({
@@ -1013,7 +1005,7 @@ describe.each([
         it("should request user confirmation for second user", async () => {
             opts = { meta: { authToken: authTokens[2] } };
             let params = {};
-            const result = await  broker.call("users.requestConfirmation", params, opts)
+            const result = await  broker.call("v1.users.requestConfirmation", params, opts)
             expect(result).toEqual(true);
             expect(events["UserConfirmationRequested"]).toBeDefined();
             expect(events["UserConfirmationRequested"].length).toEqual(1);
@@ -1027,7 +1019,7 @@ describe.each([
             let params = {
                 confirmationToken
             };
-            const result = await  broker.call("users.confirm", params, opts)
+            const result = await  broker.call("v1.users.confirm", params, opts)
             expect(result).toEqual(true);
             expect(events["UserConfirmed"]).toBeDefined();
             expect(events["UserConfirmed"].length).toEqual(1);
@@ -1038,7 +1030,7 @@ describe.each([
         it("should verify the authToken and return userToken for second user", async () => {
             opts = { meta: { authToken: authTokens[2] } };
             let params = {};
-            const result = await  broker.call("users.verifyAuthToken", params, opts)
+            const result = await  broker.call("v1.users.verifyAuthToken", params, opts)
             const decoded = jwt.decode(result);
             expect(result).toBeDefined();
             expect(decoded.type).toEqual("userToken");
@@ -1059,7 +1051,7 @@ describe.each([
             let params = {
                 invitationToken
             };
-            const result = await  broker.call("groups.join", params, opts)
+            const result = await  broker.call("v1.groups.join", params, opts)
             expect(result).toEqual(true);
             expect(events["GroupMemberJoined"]).toBeDefined();
             expect(events["GroupMemberJoined"].length).toEqual(1);
@@ -1081,7 +1073,7 @@ describe.each([
                 groupId: groups[0].uid,
                 email: users[3].email
             }
-            const result = await broker.call("groups.inviteUser", params, opts);
+            const result = await broker.call("v1.groups.inviteUser", params, opts);
             expect(result).toEqual(true);
             expect(events["UserInvited"]).toBeDefined();
             expect(events["UserInvited"].length).toEqual(1);
@@ -1099,7 +1091,7 @@ describe.each([
         it("should list the invitation for the invited user", async () => {
             opts = { meta: { authToken: authTokens[3] } };
             let params = {};
-            const result = await  broker.call("users.get", params, opts)
+            const result = await  broker.call("v1.users.get", params, opts)
             expect(result).toBeDefined();
             expect(result.invitations[groups[0].uid]).toBeDefined();
             expect(result.invitations[groups[0].uid]).toEqual({
@@ -1114,7 +1106,7 @@ describe.each([
             let params = {
                 invitationToken
             }
-            const result = await broker.call("groups.refuseInvitation", params, opts);
+            const result = await broker.call("v1.groups.refuseInvitation", params, opts);
             expect(result).toEqual(true);
             expect(events["GroupInvitationRefused"]).toBeDefined();
             expect(events["GroupInvitationRefused"].length).toEqual(1);
@@ -1127,7 +1119,7 @@ describe.each([
         it("should not list the group for the uninvited user", async () => {
             opts = { meta: { authToken: authTokens[3] } };
             let params = {};
-            const result = await  broker.call("users.get", params, opts)
+            const result = await  broker.call("v1.users.get", params, opts)
             expect(result).toBeDefined();
             expect(result.invitations[groups[0].uid]).not.toBeDefined();
         });
@@ -1137,7 +1129,7 @@ describe.each([
                 groupId: groups[0].uid,
                 email: users[3].email
             }
-            const result = await broker.call("groups.inviteUser", params, opts);
+            const result = await broker.call("v1.groups.inviteUser", params, opts);
             expect(result).toEqual(true);
             invitationToken = events["UserInvited"][0].payload.invitationToken;
         })
@@ -1147,7 +1139,7 @@ describe.each([
                 groupId: groups[0].uid,
                 email: users[3].email
             }
-            const result = await broker.call("groups.uninviteUser", params, opts);
+            const result = await broker.call("v1.groups.uninviteUser", params, opts);
             expect(result).toEqual(true);
             expect(events["UserUninvited"]).toBeDefined();
             expect(events["UserUninvited"].length).toEqual(1);
@@ -1163,7 +1155,7 @@ describe.each([
         it("should not list the group for the uninvited user", async () => {
             opts = { meta: { authToken: authTokens[3] } };
             let params = {};
-            const result = await  broker.call("users.get", params, opts)
+            const result = await  broker.call("v1.users.get", params, opts)
             expect(result).toBeDefined();
             expect(result.invitations[groups[0].uid]).not.toBeDefined();
         });
@@ -1173,7 +1165,7 @@ describe.each([
                 groupId: groups[0].uid,
                 email: users[3].email
             }
-            const result = await broker.call("groups.inviteUser", params, opts);
+            const result = await broker.call("v1.groups.inviteUser", params, opts);
             expect(result).toEqual(true);
             invitationToken = events["UserInvited"][0].payload.invitationToken;
         })
@@ -1183,7 +1175,7 @@ describe.each([
             let params = {
                 invitationToken
             };
-            const result = await  broker.call("groups.join", params, opts)
+            const result = await  broker.call("v1.groups.join", params, opts)
             expect(result).toEqual(true);
             expect(events["GroupMemberJoined"]).toBeDefined();
             expect(events["GroupMemberJoined"].length).toEqual(1);
@@ -1206,7 +1198,7 @@ describe.each([
                 groupId: groups[0].uid,
                 alias: "My alias name"
             };
-            const result = await  broker.call("users.setGroupAlias", params, opts)
+            const result = await  broker.call("v1.users.setGroupAlias", params, opts)
             expect(result).toEqual(true);
         });
 
@@ -1216,14 +1208,14 @@ describe.each([
                 groupId: groups[0].uid,
                 hide: true
             };
-            const result = await  broker.call("users.hideGroup", params, opts)
+            const result = await  broker.call("v1.users.hideGroup", params, opts)
             expect(result).toEqual(true);
         });
 
         it("should list the group with alias and hidden flag", async () => {
             opts = { meta: { authToken: authTokens[0] } };
             let params = {};
-            const result = await  broker.call("users.get", params, opts)
+            const result = await  broker.call("v1.users.get", params, opts)
             expect(result).toBeDefined();
             expect(result.groups[groups[0].uid].hide).toEqual(true);
             expect(result.groups[groups[0].uid].alias).toEqual("My alias name");
@@ -1233,7 +1225,7 @@ describe.each([
         it("should log out the first user", async () => {
             opts = { meta: { authToken: authTokens[0] } };
             let params = {};
-            const result = await  broker.call("users.logOut", params, opts)
+            const result = await  broker.call("v1.users.logOut", params, opts)
             expect(result).toEqual(true);
             expect(events["UserLoggedOut"]).toBeDefined();
             expect(events["UserLoggedOut"].length).toEqual(1);
@@ -1249,7 +1241,7 @@ describe.each([
                 groupId: groups[1].uid,
                 label: groups[1].label,
             }
-            const result = await  broker.call("groups.create", params, opts)
+            const result = await  broker.call("v1.groups.create", params, opts)
             expect(result).toEqual(true);
             expect(events["GroupCreated"]).toBeDefined();
             expect(events["GroupCreated"].length).toEqual(1);
@@ -1279,7 +1271,7 @@ describe.each([
         let opts, accessToken, encrypted, serviceAccessToken;
 
         beforeAll(async () => {
-            await broker.waitForServices(["users","groups"]);
+            await broker.waitForServices(["v1.users","v1.groups"]);
         })
 
         beforeEach(() => {
@@ -1294,7 +1286,7 @@ describe.each([
             let params = {
                 groupId: groups[0].uid
             };
-            const result = await  broker.call("groups.requestAccessForMember", params, opts)
+            const result = await  broker.call("v1.groups.requestAccessForMember", params, opts)
             expect(result).toBeDefined();
             expect(result).toEqual({
                 accessToken: expect.any(String),
@@ -1305,7 +1297,7 @@ describe.each([
         it("verify access token and retrieve internal access token", async () => {
             opts.meta.authToken = accessToken;
             let params = {};
-            const result = await  broker.call("groups.verifyAccessToken", params, opts)
+            const result = await  broker.call("v1.groups.verifyAccessToken", params, opts)
             expect(result).toBeDefined();
             expect(result).toEqual(expect.any(String))
             const decoded = jwt.decode(result);
@@ -1321,7 +1313,7 @@ describe.each([
             let params = {
                 groupId: groups[0].uid
             };
-            const result = await  broker.call("groups.requestAccessForMember", params, opts)
+            const result = await  broker.call("v1.groups.requestAccessForMember", params, opts)
             expect(result).toBeDefined();
             expect(result).toEqual({
                 accessToken: expect.any(String),
@@ -1333,7 +1325,7 @@ describe.each([
             opts.meta.userToken = userTokens[2];
             opts.meta.authToken = accessToken;
             let params = {};
-            const result = await  broker.call("groups.verifyAccessToken", params, opts)
+            const result = await  broker.call("v1.groups.verifyAccessToken", params, opts)
             expect(result).toBeDefined();
             expect(result).toEqual(expect.any(String))
             const decoded = jwt.decode(result);
@@ -1352,7 +1344,7 @@ describe.each([
                     "any": "object"
                 }
             }
-            const result = await  broker.call("groups.encrypt", params, opts)
+            const result = await  broker.call("v1.groups.encrypt", params, opts)
             expect(result).toBeDefined();
             encrypted = result;
         });
@@ -1363,7 +1355,7 @@ describe.each([
             const params = {
                 encrypted
             }
-            const result = await  broker.call("groups.decrypt", params, opts)
+            const result = await  broker.call("v1.groups.decrypt", params, opts)
             expect(result).toBeDefined();
             expect(result).toEqual({
                 "any": "object"
@@ -1378,7 +1370,7 @@ describe.each([
             }
             expect.assertions(1);
             try {
-                await broker.call("groups.decrypt", params, opts);
+                await broker.call("v1.groups.decrypt", params, opts);
             } catch (err) {
                 expect(err.message).toEqual("failed to decrypt");
             }
@@ -1390,7 +1382,7 @@ describe.each([
             }
             await  broker.emit("GroupsDefaultKeyExpired", params, opts);
             opts = { meta: { userToken: userTokens[3] } };
-            const result = await broker.call("groups.get", params, opts);
+            const result = await broker.call("v1.groups.get", params, opts);
             expect(result).toBeDefined();
             expect(Object.keys(result.keys.store).length === 2).toBe(true);
         })
@@ -1401,7 +1393,7 @@ describe.each([
             }
             await  broker.emit("GroupsDefaultKeyExpired", params, opts);
             opts = { meta: { userToken: userTokens[3] } };
-            const result = await broker.call("groups.get", params, opts);
+            const result = await broker.call("v1.groups.get", params, opts);
             expect(result).toBeDefined();
             expect(Object.keys(result.keys.store).length === 3).toBe(true);
         })
@@ -1429,7 +1421,7 @@ describe.each([
                     }
                 }
             }
-            const result = await  broker.call("groups.encryptValues", params, opts)
+            const result = await  broker.call("v1.groups.encryptValues", params, opts)
             expect(result).toBeDefined();
             // console.log(result)
             expect(result.nested.password._encrypted).toEqual(expect.any(String));
@@ -1445,7 +1437,7 @@ describe.each([
             const params = {
                 data: encrypted
             }
-            const result = await  broker.call("groups.decryptValues", params, opts)
+            const result = await  broker.call("v1.groups.decryptValues", params, opts)
             // console.log(result);
             expect(result).toBeDefined();
             expect(result.nested.password).toEqual("my super secret");
@@ -1464,8 +1456,8 @@ describe.each([
             const filePath = "assets/favicon"
             let readStream = fs.createReadStream(`${filePath}.ico`);
             let writeStream = fs.createWriteStream(`${filePath}.stream.enc.ico`);
-            const { cipher } = await  broker.call("groups.encryptStream", params, opts);
-            const { decipher } = await  broker.call("groups.decryptStream", params, opts);
+            const { cipher } = await  broker.call("v1.groups.encryptStream", params, opts);
+            const { decipher } = await  broker.call("v1.groups.decryptStream", params, opts);
             expect(cipher).toBeDefined();
             expect(decipher).toBeDefined();
             await pipeline(readStream, cipher, writeStream);
@@ -1478,7 +1470,7 @@ describe.each([
         });
 
         it("it should grant access for a service", async () => {
-            opts.meta.accessToken = accessToken;
+            opts.meta.ownerId = groups[0].uid;
             let params = {
                 groupId: groups[0].uid
             };
@@ -1496,7 +1488,7 @@ describe.each([
             const decoded = jwt.decode(result);
             //console.log(decoded);
             expect(decoded.type).toEqual(Constants.TOKEN_TYPE_ACCESS_INTERNAL);
-            expect(decoded.service).toEqual("test");
+            expect(decoded.service).toEqual(serviceId);
             serviceAccessToken = result;
         });
 
@@ -1508,7 +1500,7 @@ describe.each([
                     "any": "object"
                 }
             }
-            const result = await  broker.call("groups.encrypt", params, opts)
+            const result = await  broker.call("v1.groups.encrypt", params, opts)
             expect(result).toBeDefined();
             encrypted = result;
         });
@@ -1519,7 +1511,7 @@ describe.each([
             const params = {
                 encrypted
             }
-            const result = await  broker.call("groups.decrypt", params, opts)
+            const result = await  broker.call("v1.groups.decrypt", params, opts)
             expect(result).toBeDefined();
             expect(result).toEqual({
                 "any": "object"
@@ -1534,7 +1526,7 @@ describe.each([
         let opts, agentToken, accessToken, encrypted;
 
         beforeAll(async () => {
-            await broker.waitForServices(["users","groups","agents"]);
+            await broker.waitForServices(["v1.users","v1.groups","agents"]);
         })
 
         beforeEach(() => {});
@@ -1544,7 +1536,7 @@ describe.each([
             let params = {
                 groupId: groups[0].uid
             };
-            const result = await  broker.call("groups.requestAccessForMember", params, opts)
+            const result = await  broker.call("v1.groups.requestAccessForMember", params, opts)
             expect(result).toBeDefined();
             expect(result).toEqual({
                 accessToken: expect.any(String),
@@ -1557,7 +1549,7 @@ describe.each([
             let params = {
                 groupId: groups[0].uid
             };
-            const result = await  broker.call("groups.requestAccessForMember", params, opts)
+            const result = await  broker.call("v1.groups.requestAccessForMember", params, opts)
             expect(result).toBeDefined();
             expect(result).toEqual({
                 accessToken: expect.any(String),
@@ -1568,7 +1560,7 @@ describe.each([
         it("should verify the accessToken and return userToken", async () => {
             opts = { meta: { authToken: accessTokenUsers[0], userToken: userTokens[0] } };
             let params = {};
-            const result = await  broker.call("users.verifyAuthToken", params, opts)
+            const result = await  broker.call("v1.users.verifyAuthToken", params, opts)
             const decoded = jwt.decode(result);
             expect(result).toBeDefined();
             expect(decoded.type).toEqual(Constants.TOKEN_TYPE_USER);
@@ -1587,7 +1579,7 @@ describe.each([
         it("should verify the accessToken and return userToken for second user", async () => {
             opts = { meta: { authToken: accessTokenUsers[2], userToken: userTokens[2] } };
             let params = {};
-            const result = await  broker.call("users.verifyAuthToken", params, opts)
+            const result = await  broker.call("v1.users.verifyAuthToken", params, opts)
             const decoded = jwt.decode(result);
             expect(result).toBeDefined();
             expect(decoded.type).toEqual(Constants.TOKEN_TYPE_USER);
@@ -1605,7 +1597,7 @@ describe.each([
 
         it("should verify access token and return internal access token", async () => {
             opts = { meta: { authToken: accessTokenUsers[0], userToken: userTokens[0] } };
-            const result = await  broker.call("groups.verifyAccessToken", {}, opts)
+            const result = await  broker.call("v1.groups.verifyAccessToken", {}, opts)
             expect(result).toBeDefined();
             expect(result).toEqual(expect.any(String))
             const decoded = jwt.decode(result);
@@ -1618,7 +1610,7 @@ describe.each([
 
         it("should verify access token and return internal access token for second user", async () => {
             opts = { meta: { authToken: accessTokenUsers[2], userToken: userTokens[2] } };
-            const result = await  broker.call("groups.verifyAccessToken", {}, opts)
+            const result = await  broker.call("v1.groups.verifyAccessToken", {}, opts)
             expect(result).toBeDefined();
             expect(result).toEqual(expect.any(String))
             const decoded = jwt.decode(result);
@@ -1661,7 +1653,7 @@ describe.each([
             let params = {
                 groupId: groups[0].uid
             }
-            const result = await broker.call("groups.get", params, opts);
+            const result = await broker.call("v1.groups.get", params, opts);
             expect(result.uid).toEqual(groups[0].uid);
             expect(result.agents[agents[0].uid]).toEqual({
                 uid: agents[0].uid,
@@ -1791,7 +1783,7 @@ describe.each([
             let params = {
                 groupId: groups[0].uid
             }
-            const result = await  broker.call("groups.requestAccessForAgent", params, opts);
+            const result = await  broker.call("v1.groups.requestAccessForAgent", params, opts);
             expect(result).toBeDefined();
             expect(result).toEqual({
                 accessToken: expect.any(String),
@@ -1807,7 +1799,7 @@ describe.each([
                     "any": "object"
                 }
             }
-            const result = await  broker.call("groups.encrypt", params, opts)
+            const result = await  broker.call("v1.groups.encrypt", params, opts)
             expect(result).toBeDefined();
             encrypted = result;
         })
@@ -1818,7 +1810,7 @@ describe.each([
             const params = {
                 encrypted
             }
-            const result = await  broker.call("groups.decrypt", params, opts)
+            const result = await  broker.call("v1.groups.decrypt", params, opts)
             expect(result).toBeDefined();
             expect(result).toEqual({
                 "any": "object"
@@ -1881,7 +1873,7 @@ describe.each([
             let params = {
                 groupId: groups[0].uid
             }
-            const result = await broker.call("groups.get", params, opts);
+            const result = await broker.call("v1.groups.get", params, opts);
             expect(result.uid).toEqual(groups[0].uid);
             expect(result.agents[agents[0].uid]).toEqual({
                 uid: agents[0].uid,
@@ -1933,7 +1925,7 @@ describe.each([
             let params = {
                 groupId: groups[0].uid
             }
-            const result = await broker.call("groups.get", params, opts);
+            const result = await broker.call("v1.groups.get", params, opts);
             expect(result.uid).toEqual(groups[0].uid);
             expect(result.agents).toEqual({});
         })
@@ -1945,7 +1937,7 @@ describe.each([
         let opts;
 
         beforeAll(async () => {
-            await broker.waitForServices(["users","groups"]);
+            await broker.waitForServices(["v1.users","v1.groups"]);
         })
 
         it("should list the members of the group", async () => {
@@ -1953,7 +1945,7 @@ describe.each([
             let params = {
                 groupId: groups[0].uid
             }
-            const result = await broker.call("groups.get", params, opts);
+            const result = await broker.call("v1.groups.get", params, opts);
             expect(result).toEqual({
                 uid: groups[0].uid,
                 createdAt: expect.any(Number),
@@ -2003,7 +1995,7 @@ describe.each([
                 groupId: groups[0].uid,
                 userId: users[2].uid
             }
-            const result = await broker.call("groups.nominateForAdmin", params, opts);
+            const result = await broker.call("v1.groups.nominateForAdmin", params, opts);
             expect(result).toBeDefined();
             expect(result).toEqual(true);
             expect(events["GroupMemberNominatedForAdmin"]).toBeDefined();
@@ -2021,7 +2013,7 @@ describe.each([
                 groupId: groups[0].uid,
                 userId: users[2].uid
             }
-            const result = await broker.call("groups.removeNomination", params, opts);
+            const result = await broker.call("v1.groups.removeNomination", params, opts);
             expect(result).toBeDefined();
             expect(result).toEqual(true);
             expect(events["GroupMemberNominationRemoved"]).toBeDefined();
@@ -2038,7 +2030,7 @@ describe.each([
                 groupId: groups[0].uid,
                 userId: users[2].uid
             }
-            const result = await broker.call("groups.nominateForAdmin", params, opts);
+            const result = await broker.call("v1.groups.nominateForAdmin", params, opts);
             expect(result).toBeDefined();
             expect(result).toEqual(true);
             expect(events["GroupMemberNominatedForAdmin"]).toBeDefined();
@@ -2055,7 +2047,7 @@ describe.each([
             let params = {
                 groupId: groups[0].uid
             }
-            const result = await broker.call("groups.acceptNomination", params, opts);
+            const result = await broker.call("v1.groups.acceptNomination", params, opts);
             expect(result).toBeDefined();
             expect(result).toEqual(true);
             expect(events["GroupMemberNominationForAdminAccepted"]).toBeDefined();
@@ -2072,7 +2064,7 @@ describe.each([
                 userId: users[2].uid,
                 newRole: "member"
             }
-            const result = await broker.call("groups.revokeAdmin", params, opts);
+            const result = await broker.call("v1.groups.revokeAdmin", params, opts);
             expect(result).toBeDefined();
             expect(result).toEqual(true);
             expect(events["GroupAdminRevokationRequested"]).toBeDefined();
@@ -2090,7 +2082,7 @@ describe.each([
                 groupId: groups[0].uid,
                 userId: users[2].uid
             }
-            const result = await broker.call("groups.removeRevokationRequest", params, opts);
+            const result = await broker.call("v1.groups.removeRevokationRequest", params, opts);
             expect(result).toBeDefined();
             expect(result).toEqual(true);
             expect(events["GroupAdminRevokationRemoved"]).toBeDefined();
@@ -2108,7 +2100,7 @@ describe.each([
                 userId: users[2].uid,
                 newRole: "member"
             }
-            const result = await broker.call("groups.revokeAdmin", params, opts);
+            const result = await broker.call("v1.groups.revokeAdmin", params, opts);
             expect(result).toBeDefined();
             expect(result).toEqual(true);
             expect(events["GroupAdminRevokationRequested"]).toBeDefined();
@@ -2125,7 +2117,7 @@ describe.each([
             let params = {
                 groupId: groups[0].uid
             }
-            const result = await broker.call("groups.acceptRevokation", params, opts);
+            const result = await broker.call("v1.groups.acceptRevokation", params, opts);
             expect(result).toBeDefined();
             expect(result).toEqual(true);
             expect(events["GroupAdminRevokationAccepted"]).toBeDefined();
@@ -2138,7 +2130,7 @@ describe.each([
         it("should list the group for the third user before leaving", async () => {
             opts = { meta: { authToken: authTokens[3] } };
             let params = {};
-            const result = await  broker.call("users.get", params, opts)
+            const result = await  broker.call("v1.users.get", params, opts)
             expect(result).toBeDefined();
             expect(result.groups[groups[0].uid]).toBeDefined();
         });
@@ -2148,7 +2140,7 @@ describe.each([
             let params = {
                 groupId: groups[0].uid
             };
-            const result = await  broker.call("groups.leave", params, opts)
+            const result = await  broker.call("v1.groups.leave", params, opts)
             expect(result).toEqual(true);
             expect(events["GroupMemberLeft"]).toBeDefined();
             expect(events["GroupMemberLeft"].length).toEqual(1);
@@ -2168,7 +2160,7 @@ describe.each([
             let params = {
                 groupId: groups[0].uid
             }
-            const result = await broker.call("groups.get", params, opts);
+            const result = await broker.call("v1.groups.get", params, opts);
             expect(result).toEqual({
                 uid: groups[0].uid,
                 createdAt: expect.any(Number),
@@ -2205,7 +2197,7 @@ describe.each([
         it("should not list the group for the user who left it", async () => {
             opts = { meta: { authToken: authTokens[3] } };
             let params = {};
-            const result = await  broker.call("users.get", params, opts)
+            const result = await  broker.call("v1.users.get", params, opts)
             expect(result).toBeDefined();
             expect(result.groups[groups[0].uid]).not.toBeDefined();
         });
@@ -2216,7 +2208,7 @@ describe.each([
                 groupId: groups[0].uid,
                 userId: users[2].uid
             };
-            const result = await  broker.call("groups.removeMember", params, opts)
+            const result = await  broker.call("v1.groups.removeMember", params, opts)
             expect(result).toEqual(true);
             expect(events["GroupMemberRemoved"]).toBeDefined();
             expect(events["GroupMemberRemoved"].length).toEqual(1);
@@ -2230,7 +2222,7 @@ describe.each([
             let params = {
                 groupId: groups[0].uid
             }
-            const result = await broker.call("groups.get", params, opts);
+            const result = await broker.call("v1.groups.get", params, opts);
             expect(result).toEqual({
                 uid: groups[0].uid,
                 createdAt: expect.any(Number),
@@ -2257,7 +2249,7 @@ describe.each([
         it("should not list the group for the user who left it", async () => {
             opts = { meta: { authToken: authTokens[2] } };
             let params = {};
-            const result = await  broker.call("users.get", params, opts)
+            const result = await  broker.call("v1.users.get", params, opts)
             expect(result).toBeDefined();
             expect(result.groups[groups[0].uid]).not.toBeDefined();
         });
@@ -2270,13 +2262,13 @@ describe.each([
         let opts;
 
         beforeAll(async () => {
-            await broker.waitForServices(["users"]);
+            await broker.waitForServices(["v1.users"]);
         })
 
         it("should retrieve log for user A", async () => {
             opts = { meta: { userToken: userTokens[0] } };
             let params = {};
-            const result = await  broker.call("users.getLog", params, opts)
+            const result = await  broker.call("v1.users.getLog", params, opts)
             expect(result).toBeDefined();
             expect(result.events.length > 0).toEqual(true);
             expect(result.count).toEqual(result.events.length);
@@ -2288,7 +2280,7 @@ describe.each([
             let params = {
                 groupId: groups[0].uid
             };
-            const result = await  broker.call("groups.getLog", params, opts)
+            const result = await  broker.call("v1.groups.getLog", params, opts)
             expect(result).toBeDefined();
             expect(result.events.length > 0).toEqual(true);
             expect(result.count).toEqual(result.events.length);
@@ -2301,7 +2293,7 @@ describe.each([
         let opts, deletionToken;
 
         beforeAll(async () => {
-            await broker.waitForServices(["users","groups"]);
+            await broker.waitForServices(["v1.users","v1.groups"]);
         })
 
         it("should request group deletion", async () => {
@@ -2309,7 +2301,7 @@ describe.each([
             let params = {
                 groupId: groups[0].uid
             };
-            const result = await  broker.call("groups.requestDeletion", params, opts)
+            const result = await  broker.call("v1.groups.requestDeletion", params, opts)
             expect(result).toEqual(true);
             expect(events["GroupDeletionRequested"]).toBeDefined();
             expect(events["GroupDeletionRequested"].length).toEqual(1);
@@ -2323,7 +2315,7 @@ describe.each([
             let params = {
                 groupId: groups[0].uid
             };
-            const result = await  broker.call("groups.cancelDeletionRequest", params, opts)
+            const result = await  broker.call("v1.groups.cancelDeletionRequest", params, opts)
             expect(result).toEqual(true);
             expect(events["GroupDeletionCanceled"]).toBeDefined();
             expect(events["GroupDeletionCanceled"].length).toEqual(1);
@@ -2337,7 +2329,7 @@ describe.each([
             let params = {
                 groupId: groups[0].uid
             };
-            const result = await  broker.call("groups.requestDeletion", params, opts)
+            const result = await  broker.call("v1.groups.requestDeletion", params, opts)
             expect(result).toEqual(true);
             expect(events["GroupDeletionRequested"]).toBeDefined();
             expect(events["GroupDeletionRequested"].length).toEqual(1);
@@ -2351,7 +2343,7 @@ describe.each([
             let params = {
                 groupId: groups[0].uid
             };
-            const result = await  broker.call("groups.confirmDeletion", params, opts)
+            const result = await  broker.call("v1.groups.confirmDeletion", params, opts)
             expect(result).toEqual(true);
             expect(events["GroupDeletionConfirmed"]).toBeDefined();
             expect(events["GroupDeletionConfirmed"].length).toEqual(1);
@@ -2367,7 +2359,7 @@ describe.each([
             let params = {
                 deletionToken
             };
-            const result = await  broker.call("groups.delete", params, opts)
+            const result = await  broker.call("v1.groups.delete", params, opts)
             expect(result).toEqual(true);
             expect(events["GroupDeleted"]).toBeDefined();
             expect(events["GroupDeleted"].length).toEqual(1);
@@ -2379,7 +2371,7 @@ describe.each([
         it("should not list the group for the admin after deletion", async () => {
             opts = { meta: { userToken: userTokens[0] } };
             let params = {};
-            const result = await  broker.call("users.get", params, opts)
+            const result = await  broker.call("v1.users.get", params, opts)
             expect(result).toBeDefined();
             expect(result.uid).toEqual(users[0].uid);
             expect(result.groups[groups[0].uid]).not.toBeDefined();
@@ -2392,13 +2384,13 @@ describe.each([
         let opts, deletionToken;
 
         beforeAll(async () => {
-            await broker.waitForServices(["users","groups"]);
+            await broker.waitForServices(["v1.users","v1.groups"]);
         })
 
         it("should request user deletion", async () => {
             opts = { meta: { userToken: userTokens[0] } };
             let params = {};
-            const result = await  broker.call("users.requestDeletion", params, opts)
+            const result = await  broker.call("v1.users.requestDeletion", params, opts)
             expect(result).toEqual(true);
             expect(events["UserDeletionRequested"]).toBeDefined();
             expect(events["UserDeletionRequested"].length).toEqual(1);
@@ -2409,7 +2401,7 @@ describe.each([
         it("should cancel deletion request", async () => {
             opts = { meta: { userToken: userTokens[0] } };
             let params = {};
-            const result = await  broker.call("users.cancelDeletionRequest", params, opts)
+            const result = await  broker.call("v1.users.cancelDeletionRequest", params, opts)
             expect(result).toEqual(true);
             expect(events["UserDeletionCanceled"]).toBeDefined();
             expect(events["UserDeletionCanceled"].length).toEqual(1);
@@ -2420,7 +2412,7 @@ describe.each([
         it("should request group deletion again", async () => {
             opts = { meta: { userToken: userTokens[0] } };
             let params = {};
-            const result = await  broker.call("users.requestDeletion", params, opts)
+            const result = await  broker.call("v1.users.requestDeletion", params, opts)
             expect(result).toEqual(true);
             expect(events["UserDeletionRequested"]).toBeDefined();
             expect(events["UserDeletionRequested"].length).toEqual(1);
@@ -2431,7 +2423,7 @@ describe.each([
         it("should confirm deletion request", async () => {
             opts = { meta: { userToken: userTokens[0] } };
             let params = {};
-            const result = await  broker.call("users.confirmDeletion", params, opts)
+            const result = await  broker.call("v1.users.confirmDeletion", params, opts)
             expect(result).toEqual(true);
             expect(events["UserDeletionConfirmed"]).toBeDefined();
             expect(events["UserDeletionConfirmed"].length).toEqual(1);
@@ -2446,7 +2438,7 @@ describe.each([
             let params = {
                 deletionToken
             };
-            const result = await  broker.call("users.delete", params, opts)
+            const result = await  broker.call("v1.users.delete", params, opts)
             expect(result).toEqual(true);
             expect(events["UserDeleted"]).toBeDefined();
             expect(events["UserDeleted"].length).toEqual(1);
@@ -2460,7 +2452,7 @@ describe.each([
             let params = {};
             expect.assertions(3);
             try {
-                await  broker.call("users.requestDeletion", params, opts);
+                await  broker.call("v1.users.requestDeletion", params, opts);
             } catch (err) {
                 expect(err.message).toEqual("UserIsGroupMember");
                 expect(err.userId).toEqual(users[3].uid);

@@ -72,7 +72,7 @@ class store {
 
     getStream(bucketName, objectName) {
         const obj = this.store[bucketName][objectName];
-        console.log("getStream", bucketName, objectName,obj);
+        // console.log("getStream", bucketName, objectName,obj);
         return obj.type === "value" ? Readable.from(obj.value) : new ReadableObjectStream(obj.value);
     }
 
@@ -91,6 +91,7 @@ function streamToString (stream) {
 }
 
 function put(bucketName, objectName, value) {
+    if (!localStore[bucketName]) localStore[bucketName] = {};
     localStore[bucketName][objectName] = {
         type: "value",
         value
@@ -123,6 +124,7 @@ function getStore() {
 
 const  StoreServiceMock = {
     name: "minio",
+    version: 1,
     
     /**
      * Service settings
@@ -303,7 +305,7 @@ const  StoreServiceMock = {
 
                 try {
                     const s =  this.memoryStore.get(owner, ctx.params.objectName);
-                    console.log(s, owner, ctx.params.objectName);
+                    // console.log(s, owner, ctx.params.objectName);
                     try {
                         return JSON.parse(s);
                     } catch (e) {

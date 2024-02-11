@@ -63,7 +63,7 @@ const keys = {
 const accessTokenStore = {};
 const mockSecret = uuid();
 
-const Groups = {
+const GroupsServiceMock = {
     name: "groups",
     version: 1,
 
@@ -75,7 +75,7 @@ const Groups = {
             async handler (ctx) {
                const { decoded: access } = await this.getAccess(ctx);
                const groupId = access?.groupId || ctx.meta?.acl?.ownerId;
-               const keyProvider = this.buildKeyProvider({ keys, owner: groupId, service: this.getServiceName(ctx) });
+               const keyProvider = this.buildKeyProvider({ keys, owner: groupId, service: access?.service });
                const def = keyProvider.getKey();
                if (def.exp > Date.now()) {
                   this.broker.emit("GroupsDefaultKeyExpired", { groupId });
@@ -99,7 +99,7 @@ const Groups = {
             async handler (ctx) {
                const { decoded: access } = await this.getAccess(ctx);
                const groupId = access?.groupId || ctx.meta?.acl?.ownerId;
-               const keyProvider = this.buildKeyProvider({ keys, owner: groupId, service: this.getServiceName(ctx) });
+               const keyProvider = this.buildKeyProvider({ keys, owner: groupId, service: access?.service });
                // 
                const encryption = new EncryptionClass({ 
                   logger: this.broker.logger,
@@ -116,7 +116,7 @@ const Groups = {
             async handler (ctx) {
                const { decoded: access } = await this.getAccess(ctx);
                const groupId = access?.groupId || ctx.meta?.acl?.ownerId;
-               const keyProvider = this.buildKeyProvider({ keys, owner: groupId, service: this.getServiceName(ctx) });
+               const keyProvider = this.buildKeyProvider({ keys, owner: groupId, service: access?.service });
                // 
                const encryption = new EncryptionClass({ 
                   logger: this.broker.logger,
@@ -132,7 +132,7 @@ const Groups = {
             async handler (ctx) {
                const { decoded: access } = await this.getAccess(ctx);
                const groupId = access?.groupId || ctx.meta?.acl?.ownerId;
-               const keyProvider = this.buildKeyProvider({ keys , owner: groupId, service: this.getServiceName(ctx) });
+               const keyProvider = this.buildKeyProvider({ keys , owner: groupId, service: access?.service });
                // 
                const encryption = new EncryptionClass({ 
                   logger: this.broker.logger,
@@ -151,7 +151,7 @@ const Groups = {
             async handler (ctx) {
                const { decoded: access } = await this.getAccess(ctx);
                const groupId = access?.groupId || ctx.meta?.acl?.ownerId;
-               const keyProvider = this.buildKeyProvider({ keys, owner: groupId, service: this.getServiceName(ctx) });
+               const keyProvider = this.buildKeyProvider({ keys, owner: groupId, service: access?.service });
                //
                const encryption = new EncryptionClass({
                   logger: this.broker.logger,
@@ -173,7 +173,7 @@ const Groups = {
                const { decoded: access } = await this.getAccess(ctx);
                const groupId = access?.groupId || ctx.meta?.acl?.ownerId;
                console.log(ctx.meta);
-               const keyProvider = this.buildKeyProvider({ keys, owner: groupId, service: ctx.meta?.test?.service || this.getServiceName(ctx) });
+               const keyProvider = this.buildKeyProvider({ keys, owner: groupId, service: access?.service });
                //
                const encryption = new EncryptionClass({
                   logger: this.broker.logger,
@@ -191,14 +191,13 @@ const Groups = {
             visibility: "public",
             params: {
                groupId: { type: "uuid"},
-               service: { type: "string"}
+               serviceId: { type: "string"},
+               serviceName: { type: "string"},
+               hash: { type: "string"}
             },
             async handler (ctx) {
                const events = [];
-               // validate command
-               const regex = new RegExp(`^(v\\d+.)?${ ctx.params.service }$`,"i");
-               if (!ctx.caller.match(regex)) throw new UnvalidRequest({ groupId: ctx.params.groupId, service: ctx.caller, command: "grantServiceAccess"});
-               // return result
+                  // return result
                return true;
             }
          },
@@ -207,12 +206,10 @@ const Groups = {
             visibility: "public",
             params: {
                groupId: { type: "uuid" },
-               service: { type: "string" }
-            },
+               serviceId: { type: "string" },
+               hash: { type: "string" }
+               },
             async handler (ctx) {
-               // validate query
-               const regex = new RegExp(`^(v\\d+.)?${ ctx.params.service }$`,"i");
-               if (!ctx.caller.match(regex)) throw new UnvalidRequest({ groupId: ctx.params.groupId, service: ctx.caller, query: "requestAccessForService"});
                // get or build dummy token
                if (!accessTokenStore[ctx.params.groupId]) {
                   accessTokenStore[ctx.params.groupId] = jwt.sign({ 
@@ -236,19 +233,6 @@ const Groups = {
         async getAccess(ctx) {
             const decoded = await jwt.decode({ token: ctx.meta?.accessToken });
             return { decoded }; 
-        },
-   
-        getServiceName(ctx) {
-         //console.log("getServiceName - ctx", { ctx });
-            const match = (ctx.caller || "!").match(/(?:\.?)(?<servicename>[0-9a-zA-Z_-]+$)/i);
-            if (!match?.groups?.servicename ) {
-               //console.log("getServiceName - UnvalidRequest", { caller: ctx.caller, match });
-               this.logger.error("UnvalidRequest", { caller: ctx.caller, match });
-               throw new UnvalidRequest({ caller: ctx.caller });
-            }
-            const serviceName = match.groups.servicename;
-            //console.log("getServiceName", { match, caller: ctx.caller, serviceName });
-            return serviceName;
         },
    
         buildKeyProvider({ keys, owner, service }) {
@@ -308,5 +292,5 @@ const Groups = {
 }
 
 module.exports = {
-    Groups
+    GroupsServiceMock
 }

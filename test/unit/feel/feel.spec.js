@@ -1,10 +1,12 @@
 "use strict";
 const { ServiceBroker } = require("moleculer");
 const { FeelService } = require("../../../index");
+const { StoreProvider } = require("../../../lib/provider/store");
 
 // mocks & helpers
-const { StoreMixin, put } = require("../../mocks/store.mixin");
+const { StoreServiceMock, put } = require("../../mocks/store");
 
+const { v4: uuid } = require("uuid");
 const fs = require("fs");
 
 describe("Test context service", () => {
@@ -24,8 +26,10 @@ describe("Test context service", () => {
                 logLevel: "info" //"debug"
             });
             broker.createService(Object.assign(FeelService, { 
-                mixins: [StoreMixin()]
+                mixins: [StoreProvider]
             }));
+            // Start additional services
+            [StoreServiceMock].map(service => { return broker.createService(service); }); 
             await broker.start();
             expect(broker).toBeDefined();
         });
@@ -33,6 +37,12 @@ describe("Test context service", () => {
     });
     
     describe("Test feel ", () => {
+
+        let groupId = uuid();
+
+        beforeEach(() => {
+            opts = { meta: { ownerId: groupId, acl: { ownerId: groupId } }};
+        });
 
         it("it should evaluate a string expression", () => {
             let params = {
@@ -119,7 +129,7 @@ describe("Test context service", () => {
         
         it("it should convert xml", () => {
             const filePath = "./assets/Sample.dmn";
-            put("Sample.dmn", fs.readFileSync(filePath).toString());
+            put(groupId,"Sample.dmn", fs.readFileSync(filePath).toString());
             let params = {
                 objectName: "Sample.dmn"
             };

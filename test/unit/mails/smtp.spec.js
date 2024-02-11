@@ -2,12 +2,17 @@
 
 const { ServiceBroker } = require("moleculer");
 const { SmtpService } = require("../../../index");
+const { StoreProvider } = require("../../../lib/provider/store");
+const { GroupsProvider } = require("../../../lib/provider/groups");
+const { VaultProvider } = require("../../../lib/provider/vault");
 
 // helper & mocks
-const { StoreMixin } = require("../../mocks/store.mixin");
-const { Groups } = require("../../mocks/groups");
+const { StoreServiceMock, put } = require("../../mocks/store");
+const { VaultServiceMock } = require("../../mocks/vault");
+const { GroupsServiceMock } = require("../../mocks/groups");
 const { groups } = require("../../helper/shared");
 
+const { v4: uuid } = require("uuid");
 const nodemailer = require("nodemailer");
 const fs = require("fs");
 // const util = require("util");
@@ -33,15 +38,13 @@ describe("Test mails service", () => {
                 logger: console,
                 logLevel: "debug" // "info" //"debug"
             });
-            await broker.createService(Groups);
-            await broker.createService(Object.assign(SmtpService, { 
-                mixins: [StoreMixin()],
-                settings: {
-                    services: {
-                        groups: "v1.groups"
-                    }
-                }
-            }));
+            await broker.createService({
+                name: "smtp",
+                version: 1,
+                mixins: [SmtpService, GroupsProvider, StoreProvider, VaultProvider]
+            });
+            // Start additional services
+            [GroupsServiceMock, StoreServiceMock, VaultServiceMock].map(service => { return broker.createService(service); }); 
             await broker.start();
             expect(broker).toBeDefined();
         });
@@ -73,7 +76,7 @@ describe("Test mails service", () => {
                     }
                 }
             };
-            return broker.call("smtp.save", params, opts).then(res => {
+            return broker.call("v1.smtp.save", params, opts).then(res => {
                 expect(res).toBeDefined();
                 expect(res.account).toBeDefined();
             });
@@ -84,7 +87,7 @@ describe("Test mails service", () => {
             let params = {
                 account: "test"
             };
-            return broker.call("smtp.verify", params, opts).then(res => {
+            return broker.call("v1.smtp.verify", params, opts).then(res => {
                 expect(res).toBeDefined();
                 expect(res.test).toEqual(true);
                 expect(res.err).toEqual(null);
@@ -106,7 +109,7 @@ describe("Test mails service", () => {
                     }
                 }
             };
-            return broker.call("smtp.verify", params, opts).then(res => {
+            return broker.call("v1.smtp.verify", params, opts).then(res => {
                 expect(res).toBeDefined();
                 expect(res.test).toEqual(false);
                 expect(res.err).toBeDefined();
@@ -130,7 +133,7 @@ describe("Test mails service", () => {
                     }
                 }
             };
-            return broker.call("smtp.verify", params, opts).then(res => {
+            return broker.call("v1.smtp.verify", params, opts).then(res => {
                 expect(res).toBeDefined();
                 expect(res.test).toEqual(true);
                 expect(res.err).toEqual(null);
@@ -187,7 +190,7 @@ describe("Test mails service", () => {
                     ]                    
                 }
             };
-            return broker.call("smtp.send", params, opts).then(res => {
+            return broker.call("v1.smtp.send", params, opts).then(res => {
                 expect(res).toBeDefined();
                 /*
                 { accepted: [ 'max.mustermann@gmail.com' ],

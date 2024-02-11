@@ -2,9 +2,12 @@
 
 const { ServiceBroker } = require("moleculer");
 const { TemplateService } = require("../../../index");
+const { StoreProvider } = require("../../../lib/provider/store");
 
 // helper & mocks
-const { StoreMixin, put } = require("../../mocks/store.mixin");
+const { StoreServiceMock, put } = require("../../mocks/store");
+
+const { v4: uuid } = require("uuid");
 
 describe("Test template service", () => {
 
@@ -24,8 +27,10 @@ describe("Test template service", () => {
             });
             service = await broker.createService(Object.assign(TemplateService, { 
                 name: "template",
-                mixins: [StoreMixin()]
+                mixins: [StoreProvider]
             }));
+            // Start additional services
+            [StoreServiceMock].map(service => { return broker.createService(service); }); 
             await broker.start();
             expect(service).toBeDefined();
         });
@@ -34,16 +39,18 @@ describe("Test template service", () => {
     
     describe("Test render", () => {
 
-        let opts = {};
-        
-        beforeEach(() => {});
+        let opts = {}, groupId = uuid();
+
+        beforeEach(() => {
+            opts = { meta: { ownerId: groupId, acl: { ownerId: groupId } }};
+        });
         
         it("it should render the template", async () => {
             let params = {
                 name: "path/to/template/hello.tpl",
                 data: { name: "my friend" }
             };
-            put("path/to/template/hello.tpl",{ template: "Hello, {{ name }}!" });
+            put(groupId,"path/to/template/hello.tpl",{ template: "Hello, {{ name }}!" });
 
             return broker.call("template.render", params, opts).then(res => {
                 expect(res).toBeDefined();
@@ -57,7 +64,7 @@ describe("Test template service", () => {
                 name: "path/to/template/hello.tpl",
                 data: { name: { lastName: "my friend" } }
             };
-            put("path/to/template/hello.tpl",{ template: "Hello, {{ name.lastName }}!" });
+            put(groupId,"path/to/template/hello.tpl",{ template: "Hello, {{ name.lastName }}!" });
 
             return broker.call("template.render", params, opts).then(res => {
                 expect(res).toBeDefined();
@@ -83,7 +90,7 @@ describe("Test template service", () => {
                 name: "path/to/template/unvalid.tpl",
                 data: { name: "my friend" }
             };
-            put("path/to/template/unvalid.tpl",{ template: "Hello, {{ name.lastName !" }); // missing closing brackets...
+            put(groupId,"path/to/template/unvalid.tpl",{ template: "Hello, {{ name.lastName !" }); // missing closing brackets...
           
             return broker.call("template.render", params, opts).then(res => {
                 expect(res).toBeDefined();

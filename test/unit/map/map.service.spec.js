@@ -2,9 +2,12 @@
 
 const { ServiceBroker } = require("moleculer");
 const { MapService } = require("../../../index");
+const { StoreProvider } = require("../../../lib/provider/store");
 
 // helper & mocks
-const { StoreMixin, put } = require("../../mocks/store.mixin");
+const { StoreServiceMock, put } = require("../../mocks/store");
+
+const { v4: uuid } = require("uuid");
 
 describe("Test template service", () => {
 
@@ -24,8 +27,10 @@ describe("Test template service", () => {
             });
             service = await broker.createService(Object.assign(MapService, { 
                 name: "jsonMap",
-                mixins: [StoreMixin()]
+                mixins: [StoreProvider]
             }));
+            // Start additional services
+            [StoreServiceMock].map(service => { return broker.createService(service); }); 
             await broker.start();
             expect(service).toBeDefined();
         });
@@ -34,9 +39,11 @@ describe("Test template service", () => {
     
     describe("Test map", () => {
 
-        let opts = {};
-        
-        beforeEach(() => {});
+        let opts = {}, groupId = uuid();
+
+        beforeEach(() => {
+            opts = { meta: { ownerId: groupId, acl: { ownerId: groupId } }};
+        });
 
         it("it should render a simple map from object", async () => {
             let params = {
@@ -46,7 +53,7 @@ describe("Test template service", () => {
                     value: "B"
                 }
             };
-            put("path/to/template/hello.map","{ a: value }");
+            put(groupId, "path/to/template/hello.map","{ a: value }");
             // let internal = Buffer.from(opts.meta.acl.ownerId + "~" + params.name).toString("base64");
             // globalStore[internal] =  "{ a: value }";
 
@@ -88,7 +95,7 @@ describe("Test template service", () => {
                     }
                 }
             };
-            put("path/to/template/hello.map","{ a: 1, 'key ' & b: 'String', keys.c: [1,2,3,4], 'key ' & keys.d: ['1','2','3','4'] }");
+            put(groupId, "path/to/template/hello.map","{ a: 1, 'key ' & b: 'String', keys.c: [1,2,3,4], 'key ' & keys.d: ['1','2','3','4'] }");
             // let internal = Buffer.from(opts.meta.acl.ownerId + "~" + params.name).toString("base64");
             // globalStore[internal] =  "{ a: 1, 'key ' & b: 'String', keys.c: [1,2,3,4], 'key ' & keys.d: ['1','2','3','4'] }";
 
