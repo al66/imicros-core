@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:zeebe="http://camunda.org/schema/zeebe/1.0" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" xmlns:modeler="http://camunda.org/schema/modeler/1.0" id="Definitions_15z6wdb" targetNamespace="http://bpmn.io/schema/bpmn" exporter="Camunda Modeler" exporterVersion="5.20.0" modeler:executionPlatform="Camunda Cloud" modeler:executionPlatformVersion="8.4.0">
+  <bpmn:process id="Process_17o1qp5" name="Process A zeebe" isExecutable="true">
+    <bpmn:extensionElements>
+      <zeebe:properties>
+        <zeebe:property />
+      </zeebe:properties>
+    </bpmn:extensionElements>
+    <bpmn:startEvent id="StartEvent_1" name="Order placed">
+      <bpmn:extensionElements>
+        <zeebe:properties>
+          <zeebe:property name="eventName" value="order.saved" />
+        </zeebe:properties>
+        <zeebe:ioMapping>
+          <zeebe:output source="=order" target="order" />
+        </zeebe:ioMapping>
+      </bpmn:extensionElements>
+      <bpmn:outgoing>Flow_105ntvy</bpmn:outgoing>
+    </bpmn:startEvent>
+    <bpmn:sequenceFlow id="Flow_105ntvy" sourceRef="StartEvent_1" targetRef="Activity_175db3l" />
+    <bpmn:userTask id="Activity_175db3l" name="Do something">
+      <bpmn:extensionElements>
+        <zeebe:formDefinition formKey="abc" />
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_105ntvy</bpmn:incoming>
+      <bpmn:outgoing>Flow_16zmytx</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:endEvent id="Event_0scdbwe" name="Order checked">
+      <bpmn:extensionElements>
+        <zeebe:ioMapping>
+          <zeebe:output source="=order" target="order" />
+        </zeebe:ioMapping>
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_16zmytx</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:sequenceFlow id="Flow_16zmytx" sourceRef="Activity_175db3l" targetRef="Event_0scdbwe" />
+  </bpmn:process>
+  <bpmn:message id="Message_3mcujag" name="incomingOrder">
+    <bpmn:extensionElements>
+      <zeebe:subscription correlationKey="=orderId = order.Id" />
+    </bpmn:extensionElements>
+  </bpmn:message>
+  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Process_17o1qp5">
+      <bpmndi:BPMNShape id="_BPMNShape_StartEvent_2" bpmnElement="StartEvent_1">
+        <dc:Bounds x="152" y="82" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="139" y="125" width="64" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Activity_0ffi5to_di" bpmnElement="Activity_175db3l">
+        <dc:Bounds x="240" y="60" width="100" height="80" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Event_0scdbwe_di" bpmnElement="Event_0scdbwe">
+        <dc:Bounds x="392" y="82" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="374" y="125" width="73" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Flow_105ntvy_di" bpmnElement="Flow_105ntvy">
+        <di:waypoint x="188" y="100" />
+        <di:waypoint x="240" y="100" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_16zmytx_di" bpmnElement="Flow_16zmytx">
+        <di:waypoint x="340" y="100" />
+        <di:waypoint x="392" y="100" />
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>

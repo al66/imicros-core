@@ -7,6 +7,7 @@ const { Publisher } = require("../../lib/provider/publisher");
 const { Keys } = require("../../lib/provider/keys");
 const { Encryption } = require("../../lib/provider/encryption");
 const { VaultProvider } = require("../../lib/provider/vault");
+const { GroupsProvider } = require("../../lib/provider/groups");
 const { VaultService:VaultBasic } = require("../../index");
 const { AdminService: AdminBasic } = require("../../index");
 const { Constants } = require("../../lib/classes/util/constants");
@@ -234,7 +235,7 @@ const Admin = {
 const Store = {
     name: "store",
     version: "v1",
-    mixins: [StoreBasic],
+    mixins: [StoreBasic, GroupsProvider, VaultProvider],
     settings: {
         services: {
             groups: "v1.groups"
@@ -251,7 +252,8 @@ async function setup (nodeID) {
         logger: true,
         transporter: process.env.NATS_TRANSPORTER || "nats://localhost:4222",
         logLevel: "info",
-        middlewares: [Authorized({ service: "v1.groups"})]
+        // middlewares: [Authorized({ service: "v1.groups"})]
+        middlewares: [Authorized()]
     });
     const gateway = broker.createService(Gateway);
     server = gateway.server;

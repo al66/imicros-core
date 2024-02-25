@@ -5,6 +5,7 @@ process.env.CASSANDRA_CONTACTPOINTS = "192.168.2.124";
 process.env.CASSANDRA_DATACENTER = "datacenter1";
 process.env.CASSANDRA_KEYSPACE_AUTH = "imicros_auth";
 process.env.CASSANDRA_KEYSPACE_EXCHANGE = "imicros_exchange";
+process.env.CASSANDRA_KEYSPACE_FLOW = "imicros_flow";
 process.env.CASSANDRA_PORT = 31326;
 process.env.CASSANDRA_USER = "cassandra";
 process.env.CASSANDRA_PASSWORD = "cassandra";
@@ -25,6 +26,7 @@ process.env.MASTER_TOKEN = "074e48c8e3c0bc19f9e22dd7570037392"; //crypto.randomB
 process.env.EXCHANGE_URL = "192.168.2.124/api/v1/exchange";
 // ---- SERVICE ID's ----
 process.env.SERVICE_ID_EXCHANGE = uuid()
+process.env.SERVICE_ID_FLOW = uuid()
 
 
 /* Jest config */

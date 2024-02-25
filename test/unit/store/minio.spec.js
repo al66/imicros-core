@@ -2,10 +2,13 @@
 
 const { ServiceBroker } = require("moleculer");
 const { StoreService } = require("../../../index");
+const { GroupsProvider } = require("../../../lib/provider/groups");
+const { VaultProvider } = require("../../../lib/provider/vault");
 
 // helper & mocks
 const { groups } = require("../../helper/shared");
 const { GroupsServiceMock } = require("../../mocks/groups");
+const { VaultServiceMock } = require("../../mocks/vault");
 const fs = require("fs");
 
 describe("Test store service", () => {
@@ -20,14 +23,14 @@ describe("Test store service", () => {
                 logger: console,
                 logLevel: "info" //"debug"
             });
-            broker.createService(Object.assign(StoreService, {
+            broker.createService({
+                mixins: [StoreService, GroupsProvider, VaultProvider],
+                dependencies: ["v1.groups"],
                 settings: {
-                    services: { 
-                        groups: "v1.groups"
-                    }
                 }
-            }));
-            broker.createService(GroupsServiceMock);
+            });
+            // Start additional services
+            [GroupsServiceMock, VaultServiceMock].map(service => { return broker.createService(service); }); 
             await broker.start();
             expect(broker).toBeDefined();
             //expect(service).toBeDefined();
