@@ -18,13 +18,6 @@
       <bpmn:outgoing>Flow_105ntvy</bpmn:outgoing>
     </bpmn:startEvent>
     <bpmn:sequenceFlow id="Flow_105ntvy" sourceRef="StartEvent_1" targetRef="Activity_175db3l" />
-    <bpmn:userTask id="Activity_175db3l" name="Do something">
-      <bpmn:extensionElements>
-        <zeebe:formDefinition formKey="abc" />
-      </bpmn:extensionElements>
-      <bpmn:incoming>Flow_105ntvy</bpmn:incoming>
-      <bpmn:outgoing>Flow_16zmytx</bpmn:outgoing>
-    </bpmn:userTask>
     <bpmn:endEvent id="Event_0scdbwe" name="Order checked">
       <bpmn:extensionElements>
         <zeebe:ioMapping>
@@ -34,6 +27,10 @@
       <bpmn:incoming>Flow_16zmytx</bpmn:incoming>
     </bpmn:endEvent>
     <bpmn:sequenceFlow id="Flow_16zmytx" sourceRef="Activity_175db3l" targetRef="Event_0scdbwe" />
+    <bpmn:task id="Activity_175db3l" name="Do something">
+      <bpmn:incoming>Flow_105ntvy</bpmn:incoming>
+      <bpmn:outgoing>Flow_16zmytx</bpmn:outgoing>
+    </bpmn:task>
   </bpmn:process>
   <bpmn:message id="Message_3mcujag" name="incomingOrder">
     <bpmn:extensionElements>
@@ -48,15 +45,14 @@
           <dc:Bounds x="139" y="125" width="64" height="14" />
         </bpmndi:BPMNLabel>
       </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="Activity_0ffi5to_di" bpmnElement="Activity_175db3l">
-        <dc:Bounds x="240" y="60" width="100" height="80" />
-        <bpmndi:BPMNLabel />
-      </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="Event_0scdbwe_di" bpmnElement="Event_0scdbwe">
         <dc:Bounds x="392" y="82" width="36" height="36" />
         <bpmndi:BPMNLabel>
           <dc:Bounds x="374" y="125" width="73" height="14" />
         </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Activity_1m8j0i5_di" bpmnElement="Activity_175db3l">
+        <dc:Bounds x="240" y="60" width="100" height="80" />
       </bpmndi:BPMNShape>
       <bpmndi:BPMNEdge id="Flow_105ntvy_di" bpmnElement="Flow_105ntvy">
         <di:waypoint x="188" y="100" />
