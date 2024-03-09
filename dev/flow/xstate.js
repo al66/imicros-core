@@ -1,9 +1,10 @@
-const { setup, createMachine, createActor, fromPromise, assign, raise, sendTo, spawn, spawnChild, stopChild, enqueueActions } = require('xstate');
+const { setTimeout } = require("timers/promises");
+const { setup, createMachine, createActor, fromPromise, assign, raise, sendTo, spawn, spawnChild, stopChild, enqueueActions, waitFor, toPromise } = require('xstate');
 
-const { EventMachine } = require("./event");
-const { SequenceMachine } = require("./sequence");
-const { TaskMachine } = require("./task");
+const { InstanceMachine } = require("./instance");
 const { Constants } = require("../../lib/classes/util/constants");
+
+const { Interpreter } = require("imicros-feel-interpreter");
 
 // temp
 const { ServiceBroker } = require("moleculer");
@@ -11,13 +12,9 @@ const { Parser } = require("../../lib/classes/flow/parser");
 const { v4: uuid } = require("uuid");
 const fs = require("fs");
 const { send } = require('process');
-const broker = new ServiceBroker({
-    logger: console,
-    logLevel: "debug" // "info" //"debug"
-});
-const parser = new Parser({ broker });
-const xmlData = fs.readFileSync("assets/Process A zeebe.bpmn");
-const parsedData = parser.parse({id: uuid(), xmlData, objectName: "Process Example", ownerId: uuid()});
+const { actions } = require('../../lib/services/flow');
+const { set } = require("../../lib/modules/util/lodash");
+const util = require('util')
 
 class Process {
     constructor({ logger }) {
@@ -29,6 +26,9 @@ class Process {
         // temp... events
         this.events = [];
 
+        // feel interpreter
+        this.feel = new Interpreter();
+
     }
 
     createProcessMachine() {
@@ -38,313 +38,69 @@ class Process {
                 // async instance functions
                 loadProcess: fromPromise(this.loadProcess.bind(this)),
                 loadInstance: fromPromise(this.loadInstance.bind(this)),
-                persist: fromPromise(this.persist.bind(this)),
-                processToken: fromPromise(this.processToken.bind(this))
+                persist: fromPromise(this.persist.bind(this))
             },
             actions: {
-                // activateDefault: (_, { instance, processData }) => this.activateDefault.bind(this)({ instance, processData }),
+                log: (_, { context, event }) => this.logger.debug.bind(this)(event.data.message,{ value: main.instanceActor.getSnapshot().value, ...event.data.data })
             }
-        }).createMachine({
-            id: "instance",
-            initial: 'created',
-            context: ({ self }) => ({ 
-                instance: self,
-                data: {},
-                childs: {},
-            }),
-            predictableActionArguments: true,
-            states: {
-                created: { 
-                    on: { 
-                        load: {
-                            target: 'loadProcess',
-                            actions: [
-                                assign({ processId: ({ event }) => event.processId }),
-                                assign({ versionId: ({ event }) => event.versionId }),
-                                assign({ instanceId: ({ event }) => event.instanceId })
-                            ]
-                        }
-                    }
-                },
-
-                loadProcess: {
-                    invoke: {
-                        src: "loadProcess",
-                        input: ({ context: { processId, versionId } }) => ({ processId, versionId }),
-                        onDone: {
-                            target: "loadInstance",
-                            actions: [
-                                // ({ context, event }) => console.log("process loaded", event),
-                                assign({ processData: ({ event }) => event.output?.processData })
-                            ]
-                        }
-                    }
-                },
-
-                loadInstance: {
-                    invoke: {
-                        src: "loadInstance",
-                        input: ({ context: { instanceId } }) => ({ instanceId }),
-                        onDone: {
-                            target: "loaded",
-                            actions: assign({ instanceData: ({ event }) => event.output?.instanceData })
-                        }
-                    }
-                },
-
-                loaded: {
-                    always: [{
-                        guard: ({ context }) => context.instanceData.completed === true,
-                        target: "completed",
-                        actions: [
-                            raise({ type: "log", data: { message: "Instance already completed" }})
-                        ]
-                    },{
-                        guard: ({ context }) => context.instanceData.active.length === 0,
-                        target: "running",
-                        actions: [
-                            raise({ type: "log", data: { message: "New instance" }}),
-                            raise({ type: "activate.default" })
-                        ]
-                    },{
-                        target: "running",
-                        actions: [
-                            raise({ type: "log", data: { message: "Continue instance" }})
-                        ]
-                    }],
-                    on: { 
-                        stop: {
-                            target: 'completed'
-                        }
-                    }
-                },
-
-                running: { 
-                    after: { 
-                        1000: {
-                            target: "persist",
-                        }
-                    },
-                    on: {
-                        stop: {
-                            target: 'persist',
-                            actions: [
-                                raise({ type: "log", data: { message: "Instance stopped" }})
-                            ] 
-                        },
-                        complete: {
-                            target: 'persist',
-                            actions: [
-                                raise({ type: "log", data: { message: "Instance completed" }})
-                            ] 
-                        }
-                    }
-                },
-
-                persist: {
-                    invoke: {
-                        src: "persist",
-                        onDone: {
-                            target: "stopped"
-                        }
-                    }
-                },
-                stopped: { type: "final" },
-                completed: { type: "final" }
-            },
-            on: {
-                "activate.default": {
-                    actions: [
-                        ({context, self}) => {
-                            // search in events
-                            let element = context.processData.event.find(event => event.position === Constants.START_EVENT && event.type === Constants.DEFAULT_EVENT);
-                            if (element) {
-                                const eventMachine = createMachine(EventMachine,{ inspect: main.inspect.bind(main) });
-                                context.instance.send({ type: "activate.element", data: { id: element.id, machine: eventMachine, element, data: { order: "5" } }});
-                            }                                                
-                        }
-                    ]
-                },
-                "activate.next": {
-                    actions: [
-                        // get next element
-                        ({context, event}) => {
-                            if (!event.data?.elementId) {
-                                return;
-                            }
-                            let next = [];
-                            // search in sequences
-                            let element = context.processData.sequence.find(sequence => sequence.id === event.data.elementId);
-                            // search in tasks
-                            if (!element) element = context.processData.task.find(task => task.id === event.data.elementId);
-                            // search in events
-                            if (!element) element = context.processData.event.find(evnt => evnt.id === event.data.elementId);
-                            // search in gateways
-                            if (!element) element = context.processData.gateway.find(gateway => gateway.id === event.data.elementId);
-                            // TODO: sub process, call activity, transaction
-                    
-                            // sequence
-                            if (element.type === Constants.SEQUENCE_STANDARD || element.type === Constants.SEQUENCE_CONDITIONAL ) {
-                                if (element.toId) next.push(element.toId);
-                            // task, event or gateway
-                            } else {
-                                if (Array.isArray(element.outgoing)) next = next.concat(element.outgoing);
-                            };
-                    
-                            // map id to element
-                            next = next.map(id => {
-                                // search in sequences
-                                let element = context.processData.sequence.find(sequence => sequence.id === id);
-                                if (element) {
-                                    return context.instance.send({ type: "activate.element", data: { id: element.id, machine: createMachine(SequenceMachine), element, data: {} }});    
-                                }
-                                // search in tasks
-                                element = context.processData.task.find(task => task.id === id);
-                                if (element) {
-                                    return context.instance.send({ type: "activate.element", data: { id: element.id, machine: createMachine(TaskMachine), element, data: {} }});    
-                                }
-                                // search in events
-                                element = context.processData.event.find(evnt => evnt.id === id);
-                                if (element) {
-                                    return context.instance.send({ type: "activate.element", data: { id: element.id, machine: createMachine(EventMachine), element, data: {} }});    
-                                }
-                                // search in gateways
-                                element = context.processData.gateway.find(gateway => gateway.id === id);
-                                //if (element) return new Gateway({ process: this, element})
-                                // TODO: sub process, call activity, transaction
-                                return null;
-                            });
-
-                            // no further elements
-                            if (next.length === 0) context.instance.send({ type: "check.completed" });
-                        },
-                        stopChild(({event}) => event.data.elementId),
-                        assign(({ context, event} ) => delete context.childs[event.data.elementId]),
-                        raise(({ event }) => ({ type: "log", data: { message: "Actor stopped",  data: { elementId: event.data.elementId  } }}))
-                    ]
-                },
-                "activate.element": {
-                    actions: enqueueActions(({ enqueue, context, event }) => {
-                        if (!context.childs[event.data.id]) {
-                            enqueue.assign(({context, spawn, event, self}) => {
-                                context.childs[event.data.id] = spawn(event.data.machine, { id: event.data.id, input: { instance: self, element: event.data.element } })
-                                return { childs: context.childs }
-                            })
-                        };
-                        enqueue.sendTo(({ event }) => event.data.id, ({ event }) => ({ type: "activate", data: event.data.data }));
-                    })
-                },
-                "context.add": {
-                    actions: [
-                        assign(({ context, event }) => { context.data[event.data.key] = event.data.value; return { data: context.data } }),
-                        raise(({ event }) => ({ type: "log", data: { message: "Context added",  data: { key: event.data.key, value: event.data.value } }}))
-                    ] 
-                },
-                "check.completed": {
-                    actions: [
-                        ({context}) => {
-                            if (Object.keys(context.childs).length === 0) {
-                                context.instance.send({ type: "complete" });
-                            }
-                        }
-                    ]   
-                },
-                "log": {
-                    actions: [
-                        ({ context, event }) => this.logger.debug(event.data.message,{ value: context.instance.getSnapshot().value, ...event.data.data })
-                    ]
-                },
-                "replay.start": {
-                    actions: [
-                        assign({ replay: true })
-                    ]
-                },
-                "replay.done": {
-                    actions: [
-                        assign({ replay: false })
-                    ]
-                }
-            }
-        });
+        }).createMachine(InstanceMachine, { systemId: uuid(), inspect: this.inspect.bind(this) });
     }
 
-    initActor() {
-        if (!this.instanceActor) {
-            this.instanceActor = createActor(this.instanceMachine, { inspect: this.inspect.bind(this) });
-            // this.instanceActor.subscribe((snapshot) => console.log("Value",snapshot.value));
-            this.instanceActor.start();
-            /*
-            this.instanceActor.send({ type: "replay.start" });
-            for (const event of this.snapshot.events) {
-                this.instanceActor.send(event);
-            }
-            this.instanceActor.send({ type: "replay.done" });
-            */
-        }
+    create(snapshot = null) {
+        this.instanceActor = createActor(this.instanceMachine, { inspect: this.inspect.bind(this), snapshot });
         return this.instanceActor;
     }
 
-    inspect(inspectionEvent) {
-        // console.log("Inspection", inspectionEvent);
-        //if (inspectionEvent.type === '@xstate.event') {
-            /*
-            const replay = inspectionEvent.actorRef.getSnapshot()?.context?.replay || false;
-            if (replay) { return; }
-            const event = inspectionEvent.event;
-            // Only listen for events sent to the root actor
-            // if (inspectionEvent.actorRef !== someActor) { return; }
-            this.snapshot.events.push(event);
-            // console.log("Event", event);
-            */
-            if (inspectionEvent.actorRef !== this.instanceActor) { 
-                // this.logger.warn("Inspection", inspectionEvent);
-            }
-            this.events.push(inspectionEvent);
-        //} 
+    init() {
+        delete this.instanceActor;
+        this.events = [];
     }
 
-    async run({ processId, versionId, instanceId }) {
-        this.initActor();
-        this.instanceActor.send({ type: 'load', processId, versionId, instanceId });
+    inspect(inspectionEvent) {
+        this.events.push(inspectionEvent);
     }
-    
-    async stopped() {
-        const self = this;
-        return new Promise(resolve => {
-            const waitFor = (value, status) => {
-                if (value === status) {
-                    resolve(self.instanceActor.getSnapshot());
+
+    async logEvents(log = false) {
+        const events = JSON.parse(JSON.stringify(this.events));
+        if (log) {
+            for (const event of events) {
+                let other = "";
+                switch (event.type) {
+                    case '@xstate.event':
+                        this.logger.debug(`${ other }Event`,{  type: event.type, rootId: event.rootId, event: event.event });
+                        break;
+                    case '@xstate.microstep':
+                        this.logger.debug(`${ other }Event`,{  type: event.type, rootId: event.rootId, event: event.event  });
+                        break;
+                    case '@xstate.actor':
+                        this.logger.debug(`${ other }Event`,{  type: event.type, rootId: event.rootId });
+                        break;
+                    case '@xstate.snapshot':
+                        this.logger.debug(`${ other }Event`,{  type: event.type });    
+                        break; 
+                    default:
+                        this.logger.debug(`${ other }Event`,{  type: event.type });    
                 }
             }
-            self.instanceActor.subscribe((snapshot) => { 
-                waitFor(snapshot.value,"stopped");
-                waitFor(snapshot.value,"completed");
-            });
-        });
+        }
+        return events;
     }
 
-    async logEvents() {
-        if (1 === 1) return;
-        for (const event of this.events) {
-            let other = "";
-            if (event.actorRef !== this.instanceActor) { 
-                other = "Other: ";
-            }            
-            switch (event.type) {
-                case '@xstate.event':
-                    this.logger.debug(`${ other }Event`,{  type: event.type, rootId: event.rootId, event: event.event });
-                    break;
-                case '@xstate.microstep':
-                    this.logger.debug(`${ other }Event`,{  type: event.type, rootId: event.rootId, event: event.event  });
-                    break;
-                case '@xstate.actor':
-                    this.logger.debug(`${ other }Event`,{  type: event.type, rootId: event.rootId });
-                    break;
-                case '@xstate.snapshot':
-                    this.logger.debug(`${ other }Event`,{  type: event.type });    
-                    break; 
-                default:
-                    this.logger.debug(`${ other }Event`,{  type: event.type });    
+    rebuild(instance, events) {
+        for (const event of events) {
+            if (event.type === '@xstate.event') {
+                //console.log("Event",util.inspect(event, {showHidden: false, depth: null, colors: true}));
+                if (event.actorRef === event.rootId) {
+                    instance.send(event.event);
+                } else {
+                    switch (event.event.type) {
+                        case 'activate.element':
+                            // must be ignored! element is already spawned by xstate.init event
+                            break;
+                        default:
+                            instance.send(event.event);
+                    }
+                }
             }
         }
     }
@@ -355,6 +111,11 @@ class Process {
 
     async loadProcess({ input }) {
         this.logger.debug("Load process", input );
+
+        const parser = new Parser({ logger: this.logger });
+        const xmlData = fs.readFileSync("assets/Process A zeebe.bpmn");
+        const parsedData = parser.parse({id: uuid(), xmlData, objectName: "Process Example", ownerId: uuid()});
+        console.log(util.inspect(parsedData, {showHidden: false, depth: null, colors: true}));
         // TODO
         return { processData: parsedData };
     }
@@ -379,31 +140,87 @@ class Process {
         // console.log("Log", message, elementId, subtype);
     }
 
-    // process token
-    async processToken({ input }) {
-        console.log("Process Token", input );
-        return  new Promise(resolve => setTimeout(resolve("Done"), 50));
-    }
-    
-    async stop() {
-        this.instanceActor.send({ type: 'stop' });
-    }
 }
+
+const Service = {
+    name: "xstate",
+
+    methods: {
+        async run() {
+            this.process.init();
+            const instance = this.process.create();
+            instance.start();
+
+            // console.log(instance);
+            instance.send({ type: 'load', processId: 'A', versionId: '1', instanceId: null });
+            await waitFor(instance, (state) => state.value === "running");
+            instance.send({ type: "raise.event", data: { eventName: "Order placed", payload: { id: "123" } } });
+            // const output = await waitFor(instance, (state) => state.value === "stopped" || state.value === "completed");
+            await setTimeout(1000);
+            const snapshot = instance.getPersistedSnapshot();
+            instance.stop();
+            const events = await this.process.logEvents();
+
+            this.logger.debug("Done: frist run");
+            return { events, snapshot };
+        },
+
+        async reRun({ events, snapshot }) {
+            this.logger.debug("Start instance again");
+            this.process.init();
+            //console.log("childs", snapshot.context.childs);
+            //console.log("children", snapshot.children);
+            const instance = this.process.create();
+            instance.start();
+            snapshot = instance.getSnapshot();
+            this.logger.debug("Status after start", snapshot.value);
+
+            // Rebuild
+            this.process.rebuild(instance, events);
+
+            const snapshot2 = instance.getSnapshot();
+            this.logger.debug("Status after rebuild", snapshot2.value);
+            //console.log("childs", snapshot.context.childs);
+            //console.log("children", snapshot.children);
+            //console.log(util.inspect(snapshot, {showHidden: false, depth: null, colors: true}))
+
+            if (snapshot2.value === "running") instance.send({ type: "commit", data: { id: Object.keys(snapshot.context.childs)[0], data: { order: "12345" } } });
+            //if (snapshot2.value === "running") sendTo(Object.keys(snapshot.context.childs)[0], { type: "commit" });
+
+            await setTimeout(1000);
+            snapshot = instance.getSnapshot();
+            instance.stop();
+            events = await this.process.logEvents();
+            this.logger.debug("Status after rerun", snapshot.value);
+
+            this.logger.debug("Done: second Run");
+            return { events, snapshot };
+        }
+    },
+
+    async created () {
+        this.logger.debug("Service created");
+        this.process = new Process({ logger: broker.logger  });
+    },
+
+    async started () {
+        let result = await this.run();   
+        result = await this.reRun(result);
+        // result = await this.reRun(result);
+    }
+};
+
+const broker = new ServiceBroker({
+    logger: console,
+    logLevel: "debug", // "info" //"debug"
+});
 
 // create instance and start
 async function run () {
-    let instance = new Process({ logger: broker.logger  });
-    instance.run({ type: 'load', processId: 'A', versionId: '1' });
-    let snapshot = await instance.stopped();
-    await instance.logEvents();
-    // console.log("Result", snapshot);
-
-    /*
-    instance = new Process({ logger: broker.logger });
-    instance.run({ type: 'load', processId: 'A', versionId: '1', instanceId: 'A1' });
-    snapshot = await instance.stopped();
-    // console.log("Result", snapshot);
-    */
+    broker.createService(Service);
+    await broker.start();
+    await setTimeout(3000);
+    await broker.stop();
 
 }
 
