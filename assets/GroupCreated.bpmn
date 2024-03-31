@@ -1,0 +1,102 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:zeebe="http://camunda.org/schema/zeebe/1.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" xmlns:modeler="http://camunda.org/schema/modeler/1.0" id="Definitions_158dix0" targetNamespace="http://bpmn.io/schema/bpmn" exporter="Camunda Modeler" exporterVersion="5.20.0" modeler:executionPlatform="Camunda Cloud" modeler:executionPlatformVersion="8.4.0">
+  <bpmn:collaboration id="Collaboration_0h1122j">
+    <bpmn:participant id="Participant_0yetvtr" name="Admin" processRef="Process_0eb9v43" />
+  </bpmn:collaboration>
+  <bpmn:process id="Process_0eb9v43" isExecutable="true">
+    <bpmn:startEvent id="GroupCreated" name="Group created">
+      <bpmn:extensionElements>
+        <zeebe:ioMapping>
+          <zeebe:output source="={ groupId: groupId, admin: admin, domain: reverse(split(admin.email,&#34;@&#34;))[1] }" target="group" />
+        </zeebe:ioMapping>
+        <zeebe:properties>
+          <zeebe:property name="camundaModeler:exampleOutputJson" value="{&#10;  &#34;groupId&#34;: &#34;aea06358-558c-4e0f-8ecc-c8f9548f523d&#34;,&#10;  &#34;admin&#34;: {&#10;    &#34;email&#34;: &#34;john.dow@imicros.de&#34;&#10;  }&#10;}" />
+        </zeebe:properties>
+      </bpmn:extensionElements>
+      <bpmn:outgoing>Flow_0op3bsm</bpmn:outgoing>
+    </bpmn:startEvent>
+    <bpmn:exclusiveGateway id="Gateway_0fx4b1a" default="Flow_0dupa4u">
+      <bpmn:incoming>Flow_0op3bsm</bpmn:incoming>
+      <bpmn:outgoing>Flow_0dupa4u</bpmn:outgoing>
+      <bpmn:outgoing>Flow_1rrzvbx</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:sequenceFlow id="Flow_0op3bsm" sourceRef="GroupCreated" targetRef="Gateway_0fx4b1a" />
+    <bpmn:sequenceFlow id="Flow_0dupa4u" sourceRef="Gateway_0fx4b1a" targetRef="Gateway_0yddana" />
+    <bpmn:exclusiveGateway id="Gateway_0yddana">
+      <bpmn:incoming>Flow_0dupa4u</bpmn:incoming>
+      <bpmn:incoming>Flow_1qrt9f9</bpmn:incoming>
+      <bpmn:outgoing>Flow_1u2y06w</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:endEvent id="GroupCreationCompleted">
+      <bpmn:extensionElements>
+        <zeebe:ioMapping>
+          <zeebe:output source="={ groupId: group.groupId }" />
+        </zeebe:ioMapping>
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_1u2y06w</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:sequenceFlow id="Flow_1u2y06w" sourceRef="Gateway_0yddana" targetRef="GroupCreationCompleted" />
+    <bpmn:sequenceFlow id="Flow_1rrzvbx" name="domain = my-company.com" sourceRef="Gateway_0fx4b1a" targetRef="Activity_0tmxybp">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">=group.domain = "my-company.com"</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_1qrt9f9" sourceRef="Activity_0tmxybp" targetRef="Gateway_0yddana" />
+    <bpmn:serviceTask id="Activity_0tmxybp" name="Do some stuff">
+      <bpmn:extensionElements>
+        <zeebe:taskDefinition type="some.stuff" />
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_1rrzvbx</bpmn:incoming>
+      <bpmn:outgoing>Flow_1qrt9f9</bpmn:outgoing>
+    </bpmn:serviceTask>
+  </bpmn:process>
+  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Collaboration_0h1122j">
+      <bpmndi:BPMNShape id="Participant_0yetvtr_di" bpmnElement="Participant_0yetvtr" isHorizontal="true">
+        <dc:Bounds x="129" y="79" width="971" height="341" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="_BPMNShape_StartEvent_2" bpmnElement="GroupCreated">
+        <dc:Bounds x="282" y="252" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="265" y="295" width="71" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Gateway_0fx4b1a_di" bpmnElement="Gateway_0fx4b1a" isMarkerVisible="true">
+        <dc:Bounds x="375" y="245" width="50" height="50" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Gateway_0yddana_di" bpmnElement="Gateway_0yddana" isMarkerVisible="true">
+        <dc:Bounds x="705" y="245" width="50" height="50" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Event_1goi0pl_di" bpmnElement="GroupCreationCompleted">
+        <dc:Bounds x="812" y="252" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Activity_0dk0n0q_di" bpmnElement="Activity_0tmxybp">
+        <dc:Bounds x="510" y="129" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Flow_0op3bsm_di" bpmnElement="Flow_0op3bsm">
+        <di:waypoint x="318" y="270" />
+        <di:waypoint x="375" y="270" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_0dupa4u_di" bpmnElement="Flow_0dupa4u">
+        <di:waypoint x="425" y="270" />
+        <di:waypoint x="705" y="270" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_1u2y06w_di" bpmnElement="Flow_1u2y06w">
+        <di:waypoint x="755" y="270" />
+        <di:waypoint x="812" y="270" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_1rrzvbx_di" bpmnElement="Flow_1rrzvbx">
+        <di:waypoint x="400" y="245" />
+        <di:waypoint x="400" y="169" />
+        <di:waypoint x="510" y="169" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="316" y="155" width="68" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_1qrt9f9_di" bpmnElement="Flow_1qrt9f9">
+        <di:waypoint x="610" y="169" />
+        <di:waypoint x="730" y="169" />
+        <di:waypoint x="730" y="245" />
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>

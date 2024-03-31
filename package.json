@@ -28,7 +28,9 @@
     "test-template": "jest test/unit/templates --no-cache  --config=local.js",
     "test-map": "jest test/unit/map --no-cache  --config=local.js",
     "test-exchange": "jest test/unit/exchange --no-cache  --config=local.js",
+    "test-queue": "jest test/unit/queue --no-cache  --config=local.js",
     "test-flow": "jest test/unit/flow --no-cache  --config=local.js",
+    "test-flow-s": "jest test/unit/flow/flow.process.UserConfirmationRequested.spec.js --no-cache  --config=local.js",
     "test-i-admin": "jest test/integration/01-admin.spec.js --no-cache  --config=local.js  --forceExit",
     "test-i-newUser": "jest test/integration/02-newUser.spec.js --runInBand --no-cache  --config=local.js",
     "test-i-store": "jest test/integration/03-store.spec.js --runInBand --no-cache  --config=local.js"
@@ -71,7 +73,6 @@
   "homepage": "https://github.com/al66/imicros-authm#readme",
   "devDependencies": {
     "jest": "^29.7.0",
-    "kafkajs": "^2.2.4",
     "leaked-handles": "^5.2.0",
     "moleculer-web": "^0.10.7",
     "supertest": "^6.3.4"
@@ -82,6 +83,7 @@
     "axios": "^1.6.7",
     "base32.js": "^0.1.0",
     "cassandra-driver": "^4.7.2",
+    "kafkajs": "^2.2.4",
     "fast-xml-parser": "^4.3.4",
     "handlebars": "^4.7.8",
     "imicros-feel-interpreter": "^0.0.8",

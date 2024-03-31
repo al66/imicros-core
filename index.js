@@ -10,6 +10,8 @@ module.exports = {
     AgentsService: require("./lib/services/agents"),
     VaultService: require("./lib/services/vault"),
     StoreService: require("./lib/services/minio"),
+    QueueService: require("./lib/services/queue"),
+    WorkerService: require("./lib/services/worker"),
     AdminService: require("./lib/services/admin"),
     FeelService: require("./lib/services/feel"),
     TemplateService: require("./lib/services/template"),
@@ -20,6 +22,8 @@ module.exports = {
     StoreProvider: require("./lib/provider/store").StoreProvider,
     VaultProvider: require("./lib/provider/vault").VaultProvider,
     GroupsProvider: require("./lib/provider/groups").GroupsProvider,
+    QueueProvider: require("./lib/provider/queue").QueueProvider,
+    Serializer: require("./lib/provider/serializer").Serializer,
     // mixins
     GatewayMixin: require("./lib/mixins/gateway.mixin"),
     // middlewares

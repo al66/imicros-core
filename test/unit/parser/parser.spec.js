@@ -20,11 +20,10 @@ describe("Test parser class", () => {
                 logLevel: "info" //"debug"
             });
             await broker.start();
-            parser = new Parser({ broker });
+            parser = new Parser({ logger: broker.logger });
             expect(broker).toBeDefined();
             expect(parser).toBeDefined();
             expect(parser instanceof Parser).toEqual(true);
-            expect(parser.broker).toEqual(broker);
             expect(parser.logger).toEqual(broker.logger);
         });
 
@@ -32,7 +31,7 @@ describe("Test parser class", () => {
 
     describe("Test parser class", () => {
         it("it should parse the process", async () => {
-            const xmlData = fs.readFileSync("assets/Process Example.bpmn");
+            const xmlData = fs.readFileSync("assets/GroupCreated.bpmn");
             const id = uuid();
             const objectName = "Process Example";
             const parsedData = parser.parse({id, xmlData, objectName, ownerId: owner[0]});
@@ -47,12 +46,10 @@ describe("Test parser class", () => {
                     expect.objectContaining({ position: Constants.END_EVENT, direction: Constants.THROWING_EVENT })
                 ])
             );
-            expect(parsedData.task.length).toEqual(3);
+            expect(parsedData.task.length).toEqual(1);
             expect(parsedData.task).toEqual(
                 expect.arrayContaining([
-                    expect.objectContaining({ type: Constants.BUSINESS_RULE_TASK, name: 'Determine risk class' }),
-                    expect.objectContaining({ type: Constants.SERVICE_TASK, name: 'Map to result' }),
-                    expect.objectContaining({ type: Constants.SERVICE_TASK, name: 'Update Buiness Partner' })
+                    expect.objectContaining({ type: Constants.SERVICE_TASK, name: 'Do some stuff' })
                 ])
             );
         });

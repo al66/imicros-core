@@ -6,10 +6,12 @@ const { GroupsServiceAccess } = require("../../../lib/classes/provider/groups");
 const { v4: uuid } = require("uuid");
 
 // helper & mocks
+const jestConsole = console;
 const { StoreServiceMock, put, get } = require("../../mocks/store");
 const { GroupsServiceMock } = require("../../mocks/groups");
 const { VaultServiceMock } = require("../../mocks/vault");
 const fs = require("fs");
+const exp = require("constants");
 
 const settings = {
     db: { 
@@ -28,6 +30,11 @@ describe("Test database connection", () => {
 
     beforeEach(() => {
         opts = { meta: { user: { id: userId , email: `${userId}@host.com` } , ownerId: owner[0], acl: { ownerId: owner[0] } }};
+        global.console = require('console');        
+    });
+    
+    afterEach(() => {
+        global.console = jestConsole;        
     });
 
     describe("Test database initialization", () => {
@@ -70,7 +77,7 @@ describe("Test database connection", () => {
             const parser = new Parser({ broker });
             expect(parser).toBeDefined();
             expect(parser instanceof Parser).toEqual(true);
-            xmlData = fs.readFileSync("assets/Process Example.bpmn");
+            xmlData = fs.readFileSync("assets/UserConfirmationRequested.bpmn");
             const id = uuid();
             const objectName = "Process Example";
             parsedData = parser.parse({id, xmlData, objectName, ownerId: owner[0]});
@@ -81,6 +88,16 @@ describe("Test database connection", () => {
     });
 
     describe("Test database connector", () => {
+        let objectIds = [uuid(),uuid()];
+        let object = {
+            test: "test",
+            value: 123,
+            date: new Date().toString(),
+            now: Date.now(),
+            deep: {
+                nested: "nested"
+            }
+        }
 
         it("it should deploy a process", () => {
             let params = {
@@ -90,7 +107,11 @@ describe("Test database connection", () => {
                 versionId: parsedData.version.id, 
                 xmlData: xmlData.toString(), 
                 parsedData, 
-                attributes: {}
+                attributes: {
+                    name: parsedData.process.name,
+                    version: parsedData.version.name,
+                    created: parsedData.version.created
+                }
             };
             return db.saveProcess(params).then(res => {
                 expect(res).toBeDefined();
@@ -130,6 +151,51 @@ describe("Test database connection", () => {
             });
             
         });
+
+        it("it should retrieve the process list", () => {
+            let params = {
+                owner: owner[0], 
+                accessToken
+            };
+            return db.getVersionList(params).then(res => {
+                expect(res).toBeDefined();
+                expect(res.length).toEqual(1);
+                expect(res[0].processId).toEqual(parsedData.process.id);
+                expect(res[0].versionId).toEqual(parsedData.version.id);
+                expect(res[0].name).toEqual(parsedData.process.name);
+                expect(res[0].deployedAt).toEqual(expect.any(Date));
+                expect(res[0].activeInstances.length).toEqual(0);
+            });
+            
+        });
+
+        it("it should store an object", () => {
+            let params = {
+                owner: owner[0], 
+                accessToken, 
+                objectId: objectIds[0], 
+                data: object
+            };
+            return db.saveObject(params).then(res => {
+                expect(res).toBeDefined();
+                expect(res.objectId).toEqual(params.objectId);
+            });
+            
+        });
+
+        it("it should retrieve an object again", () => {
+            let params = {
+                owner: owner[0], 
+                accessToken, 
+                objectId: objectIds[0]
+            };
+            return db.getObject(params).then(res => {
+                expect(res).toBeDefined();
+                expect(res).toEqual(object);
+            });
+            
+        });
+
     });
 
     describe("Test stop broker", () => {

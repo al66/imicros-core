@@ -10,9 +10,10 @@
       <bpmn:extensionElements>
         <zeebe:properties>
           <zeebe:property name="eventName" value="order.saved" />
+          <zeebe:property name="camundaModeler:exampleOutputJson" value="{&#10;  &#34;id&#34;:&#34;123&#34;,&#10;  &#34;customer&#34;:{&#10;     &#34;id&#34;:&#34;9959&#34;,&#10;     &#34;name&#34;:&#34;John Doe&#34;,&#10;     &#34;email&#34;:&#34;john.dow@people.com&#34;&#10;   },&#10;   &#34;items&#34;:[{&#10;      &#34;pos&#34;:&#34;010&#34;,&#10;      &#34;matnr&#34;:&#34;abc123&#34;,&#10;      &#34;quantity&#34;:1,&#10;      &#34;price&#34;:100,&#10;      &#34;currency&#34;:&#34;EUR&#34;,&#10;      &#34;description&#34;:&#34;Product 1&#34;&#10;   },{&#10;      &#34;pos&#34;:&#34;010&#34;,&#10;      &#34;matnr&#34;:&#34;abc123&#34;,&#10;      &#34;quantity&#34;:1,&#10;      &#34;price&#34;:100,&#10;      &#34;currency&#34;:&#34;EUR&#34;,&#10;      &#34;description&#34;: &#34;Product 1&#34;&#10;   }]&#10;}" />
         </zeebe:properties>
         <zeebe:ioMapping>
-          <zeebe:output source="=payload.id" target="order" />
+          <zeebe:output source="={ &#34;id&#34;: id, &#34;customer&#34;: customer, &#34;items&#34;: items }" target="order" />
         </zeebe:ioMapping>
       </bpmn:extensionElements>
       <bpmn:outgoing>Flow_105ntvy</bpmn:outgoing>
@@ -29,11 +30,12 @@
     <bpmn:sequenceFlow id="Flow_16zmytx" sourceRef="Activity_175db3l" targetRef="Event_0scdbwe" />
     <bpmn:serviceTask id="Activity_175db3l" name="Send Mail">
       <bpmn:extensionElements>
-        <zeebe:taskDefinition type="send.mail" />
+        <zeebe:taskDefinition type="mail.send" />
         <zeebe:ioMapping>
-          <zeebe:input source="=&#34;info@imicros.de&#34;" target="mailTo" />
+          <zeebe:input source="=order.customer.email" target="mailTo" />
+          <zeebe:input source="=order" target="body" />
           <zeebe:output source="=result" target="sendMailResult" />
-          <zeebe:output source="=result" target="backup" />
+          <zeebe:output source="=result.success" target="success" />
         </zeebe:ioMapping>
       </bpmn:extensionElements>
       <bpmn:incoming>Flow_0kdlelm</bpmn:incoming>
@@ -42,8 +44,20 @@
     <bpmn:task id="Activity_06dbd4b" name="Do something">
       <bpmn:incoming>Flow_105ntvy</bpmn:incoming>
       <bpmn:outgoing>Flow_0kdlelm</bpmn:outgoing>
+      <bpmn:property id="Property_0bj3rcc" name="__targetRef_placeholder" />
+      <bpmn:dataInputAssociation id="DataInputAssociation_1c12uq4">
+        <bpmn:sourceRef>DataStoreReference_1lhqutq</bpmn:sourceRef>
+        <bpmn:targetRef>Property_0bj3rcc</bpmn:targetRef>
+      </bpmn:dataInputAssociation>
     </bpmn:task>
     <bpmn:sequenceFlow id="Flow_0kdlelm" sourceRef="Activity_06dbd4b" targetRef="Activity_175db3l" />
+    <bpmn:dataStoreReference id="DataStoreReference_1lhqutq">
+      <bpmn:extensionElements>
+        <zeebe:properties>
+          <zeebe:property />
+        </zeebe:properties>
+      </bpmn:extensionElements>
+    </bpmn:dataStoreReference>
   </bpmn:process>
   <bpmn:message id="Message_3mcujag" name="incomingOrder">
     <bpmn:extensionElements>
@@ -52,37 +66,48 @@
   </bpmn:message>
   <bpmndi:BPMNDiagram id="BPMNDiagram_1">
     <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Process_17o1qp5">
-      <bpmndi:BPMNShape id="Event_0scdbwe_di" bpmnElement="Event_0scdbwe">
-        <dc:Bounds x="562" y="82" width="36" height="36" />
-        <bpmndi:BPMNLabel>
-          <dc:Bounds x="544" y="125" width="73" height="14" />
-        </bpmndi:BPMNLabel>
-      </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="Activity_0ik5c1l_di" bpmnElement="Activity_175db3l">
-        <dc:Bounds x="420" y="60" width="100" height="80" />
-        <bpmndi:BPMNLabel />
-      </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="_BPMNShape_StartEvent_2" bpmnElement="StartEvent_1">
         <dc:Bounds x="172" y="82" width="36" height="36" />
         <bpmndi:BPMNLabel>
           <dc:Bounds x="159" y="125" width="64" height="14" />
         </bpmndi:BPMNLabel>
       </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Event_0scdbwe_di" bpmnElement="Event_0scdbwe">
+        <dc:Bounds x="582" y="82" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="564" y="125" width="73" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="Activity_06dbd4b_di" bpmnElement="Activity_06dbd4b">
         <dc:Bounds x="260" y="60" width="100" height="80" />
         <bpmndi:BPMNLabel />
       </bpmndi:BPMNShape>
-      <bpmndi:BPMNEdge id="Flow_16zmytx_di" bpmnElement="Flow_16zmytx">
-        <di:waypoint x="520" y="100" />
-        <di:waypoint x="562" y="100" />
-      </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Flow_0kdlelm_di" bpmnElement="Flow_0kdlelm">
-        <di:waypoint x="360" y="100" />
-        <di:waypoint x="420" y="100" />
-      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="DataStoreReference_1lhqutq_di" bpmnElement="DataStoreReference_1lhqutq">
+        <dc:Bounds x="305" y="225" width="50" height="50" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Activity_0ik5c1l_di" bpmnElement="Activity_175db3l">
+        <dc:Bounds x="420" y="59" width="100" height="80" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
       <bpmndi:BPMNEdge id="Flow_105ntvy_di" bpmnElement="Flow_105ntvy">
         <di:waypoint x="208" y="100" />
         <di:waypoint x="260" y="100" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_16zmytx_di" bpmnElement="Flow_16zmytx">
+        <di:waypoint x="520" y="99" />
+        <di:waypoint x="551" y="99" />
+        <di:waypoint x="551" y="100" />
+        <di:waypoint x="582" y="100" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_0kdlelm_di" bpmnElement="Flow_0kdlelm">
+        <di:waypoint x="360" y="100" />
+        <di:waypoint x="390" y="100" />
+        <di:waypoint x="390" y="99" />
+        <di:waypoint x="420" y="99" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="DataInputAssociation_1c12uq4_di" bpmnElement="DataInputAssociation_1c12uq4">
+        <di:waypoint x="326" y="225" />
+        <di:waypoint x="312" y="140" />
       </bpmndi:BPMNEdge>
     </bpmndi:BPMNPlane>
   </bpmndi:BPMNDiagram>
