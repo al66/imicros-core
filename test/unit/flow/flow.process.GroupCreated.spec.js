@@ -3,7 +3,6 @@ const { DMNConverter } = require("imicros-feel-interpreter");
 const { Process } = require("../../../lib/classes/flow/process");
 
 // helpers & mocks
-const jestConsole = console;
 const { ServiceBroker } = require("moleculer");
 const { Parser } = require("../../../lib/classes/flow/parser");
 const { v4: uuid } = require("uuid");
@@ -27,11 +26,9 @@ describe("Test flow: process GroupCreated ", () => {
     let broker, parsedData, executionResult;
 
     beforeEach(() => {
-        global.console = require('console');        
     });
     
     afterEach(() => {
-        global.console = jestConsole;        
     });
     
     describe("Test create service", () => {
@@ -88,6 +85,7 @@ describe("Test flow: process GroupCreated ", () => {
                 instanceId: uuid()
             });
             expect(executionResult).toBeDefined();
+            console.log("Execution Result",util.inspect(executionResult, {showHidden: false, depth: 1, colors: true}));
             expect(executionResult.snapshot).toBeDefined();
             expect(executionResult.snapshot.context.jobs.length === 1).toBe(true);
         });

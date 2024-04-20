@@ -37,7 +37,7 @@ describe("Test parser class", () => {
             const parsedData = parser.parse({id, xmlData, objectName, ownerId: owner[0]});
             expect(parsedData).toBeDefined();
             expect(parsedData.process.id).toEqual(id);
-            expect(parsedData.process.name).toEqual(objectName);
+            expect(parsedData.process.objectName).toEqual(objectName);
             console.log(util.inspect(parsedData, { showHidden: false, depth: null, colors: true }));
             expect(parsedData.event.length).toEqual(2);
             expect(parsedData.event).toEqual(

@@ -99,6 +99,7 @@ const GroupsServiceMock = {
             async handler (ctx) {
                const { decoded: access } = await this.getAccess(ctx);
                const groupId = access?.groupId || ctx.meta?.acl?.ownerId;
+               if (!groupId) throw new UnvalidRequest({ info: "groupId is missing" });
                const keyProvider = this.buildKeyProvider({ keys, owner: groupId, service: access?.service });
                // 
                const encryption = new EncryptionClass({ 
@@ -172,7 +173,7 @@ const GroupsServiceMock = {
                this.logger.info("call decryptValues", ctx.params.data, ctx.meta);
                const { decoded: access } = await this.getAccess(ctx);
                const groupId = access?.groupId || ctx.meta?.acl?.ownerId;
-               console.log(ctx.meta);
+               //console.log(ctx.meta);
                const keyProvider = this.buildKeyProvider({ keys, owner: groupId, service: access?.service });
                //
                const encryption = new EncryptionClass({
@@ -231,7 +232,8 @@ const GroupsServiceMock = {
     methods: {
 
         async getAccess(ctx) {
-            const decoded = await jwt.decode({ token: ctx.meta?.accessToken });
+            const decoded = await jwt.decode(ctx.meta?.accessToken || ctx.meta?.acl?.accessToken);
+            //console.log("getAccess", { decoded, meta: ctx.meta, token: ctx.meta?.accessToken || ctx.meta?.acl?.accessToken });
             return { decoded }; 
         },
    

@@ -28,6 +28,8 @@ process.env.EXCHANGE_URL = "192.168.2.124/api/v1/exchange";
 process.env.SERVICE_ID_EXCHANGE = uuid()
 process.env.SERVICE_ID_FLOW = uuid()
 
+// ---- LOG ---- from command line parameter in package.json
+process.env.LOG = process.argv.filter((x) => x.startsWith('--log='))[0]?.split('=')[1] || 'jest' // default
 
 /* Jest config */
 module.exports = {
@@ -39,6 +41,7 @@ module.exports = {
     testEnvironment: "node",
     testTimeout: 10000,
     testSequencer: "./test/helper/test-sequencer.js",
+    setupFilesAfterEnv: ["./test/helper/log.js","./test/helper/expect.js"],
     globals: require("./test/helper/global.js")
 };
 

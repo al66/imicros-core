@@ -12,6 +12,8 @@ module.exports = {
     StoreService: require("./lib/services/minio"),
     QueueService: require("./lib/services/queue"),
     WorkerService: require("./lib/services/worker"),
+    ClockService: require("./lib/services/clock"),
+    FlowService: require("./lib/services/flow"),
     AdminService: require("./lib/services/admin"),
     FeelService: require("./lib/services/feel"),
     TemplateService: require("./lib/services/template"),
@@ -30,6 +32,7 @@ module.exports = {
     Authorized: require("./lib/middleware/acl"),
     Transit: require("./lib/middleware/transit"),
     // others
+    Constants: require("./lib/classes/util/constants"),
     Exceptions: require("./lib/classes/exceptions/exceptions"),
     Unseal: require("./lib/services/unseal"),
     Map: require("./lib/classes/map/map").Map

@@ -6,7 +6,6 @@ const { WorkerService } = require("../../../index");
 const { QueueProvider } = require("../../../index");
 
 // helpers & mocks
-const jestConsole = console;
 const kafka = process.env.KAFKA_BROKER || "localhost:9092";
 const timestamp = Date.now();
 const topic = `test-topic-${timestamp}`;
@@ -46,11 +45,9 @@ describe("Test queue consumer service", () => {
     let broker, opts = {}, groupId = uuid();
 
     beforeEach(() => {
-        global.console = require('console');        
     });
     
     afterEach(() => {
-        global.console = jestConsole;        
     });
     
     describe("Test create service", () => {

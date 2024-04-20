@@ -3,7 +3,6 @@ const { DMNParser, DMNConverter } = require("imicros-feel-interpreter");
 const { Process } = require("../../../lib/classes/flow/process");
 
 // helpers & mocks
-const jestConsole = console;
 const { ServiceBroker } = require("moleculer");
 const { Parser } = require("../../../lib/classes/flow/parser");
 const { v4: uuid } = require("uuid");
@@ -52,11 +51,9 @@ describe("Test flow: process UserConfirmationRequested ", () => {
     let broker, parsedData, decisions = [], executionResult;
 
     beforeEach(() => {
-        global.console = require('console');        
     });
     
     afterEach(() => {
-        global.console = jestConsole;        
     });
     
     describe("Test create service", () => {
