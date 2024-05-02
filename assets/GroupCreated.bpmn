@@ -42,7 +42,10 @@
     <bpmn:sequenceFlow id="Flow_1qrt9f9" sourceRef="Activity_0tmxybp" targetRef="Gateway_0yddana" />
     <bpmn:serviceTask id="Activity_0tmxybp" name="Do some stuff">
       <bpmn:extensionElements>
-        <zeebe:taskDefinition type="some.stuff" />
+        <zeebe:taskDefinition type="some.stuff" retries="3" />
+        <zeebe:ioMapping>
+          <zeebe:input source="=group" target="group" />
+        </zeebe:ioMapping>
       </bpmn:extensionElements>
       <bpmn:incoming>Flow_1rrzvbx</bpmn:incoming>
       <bpmn:outgoing>Flow_1qrt9f9</bpmn:outgoing>

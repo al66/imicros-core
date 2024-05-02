@@ -83,8 +83,15 @@ class DefaultDatabase {
         return true;
     }
 
-    async read({ uid }) {
+    async read({ uid, complete = false }) {
         if (this.store[uid]) {
+            if (complete) return {
+                uid: this.store[uid].uid,
+                version: this.store[uid].version,
+                snapshot: null,
+                timeuuid: null,
+                events: this.store[uid].events
+            }
             const lastSnapshotEventIndex = this.store[uid].events.findIndex(event => event.$_timeuuid === this.store[uid].timeuuid);
             const events = this.store[uid].events.filter((event, index) => index > lastSnapshotEventIndex); 
             return {
@@ -117,7 +124,7 @@ class DefaultDatabase {
         if (this.store[uid],version !== version) return false;
         const events = Array.isArray(event) ? event : ( event ? [event] : [] );
         for (let i = 0; i < events.length; i++ ) {
-            events[i].$_timeuuid = uuidv1();
+            if (!events[i].$_timeuuid) events[i].$_timeuuid = uuidv1();
         }
         if (events) this.store[uid].events.push(...events);
         return true;

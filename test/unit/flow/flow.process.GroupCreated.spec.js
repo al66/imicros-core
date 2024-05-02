@@ -21,6 +21,7 @@ const AnyService = {
     }
 }
 
+
 describe("Test flow: process GroupCreated ", () => {
 
     let broker, parsedData, executionResult;
@@ -92,6 +93,9 @@ describe("Test flow: process GroupCreated ", () => {
 
         it("it should commit the jobs", async () => {
             const process = new Process({ logger: broker.logger  });
+            //const snapshot = JSON.parse(JSON.stringify(executionResult.snapshot));
+            const snapshot = executionResult.snapshot;
+            //console.log("Snapshot",util.inspect(snapshot.children, {showHidden: false, depth: null, colors: true}));
             while (executionResult.snapshot.context.jobs.length > 0) {
                 const job = executionResult.snapshot.context.jobs.shift();
                 // console.log("Job",util.inspect(job, {showHidden: false, depth: null, colors: true}));
@@ -100,7 +104,7 @@ describe("Test flow: process GroupCreated ", () => {
                     try {
                         const jobResult = await broker.call(service, job.data, { retries: 3 });
                         const jobId = job.jobId || null;
-                        executionResult = await process.commitJob({ jobId, result: jobResult, snapshot: executionResult.snapshot });
+                        executionResult = await process.commitJob({ jobId, result: jobResult, snapshot });
                     } catch (err) {
                         broker.logger.error("Error",err);
                     }

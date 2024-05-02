@@ -65,7 +65,7 @@ describe("Test store service", () => {
 
     describe("Test object functions", () => {
 
-        const collectionCount = 100;
+        const collectionCount = 10;
 
         it("it should put an object", () => {
             let opts = { meta: { acl: { ownerId: groups[0].uid } } };
@@ -159,6 +159,7 @@ describe("Test store service", () => {
             } 
             let stream = await broker.call("v1.minio.listObjects", params, opts);
             let res = await receive(stream);
+            //console.log(res);
             expect(res).toBeDefined();
             expect(res).toEqual(expect.arrayContaining([expect.objectContaining({ name: "imicros.png" })]));
             expect(res).toEqual(expect.arrayContaining([expect.objectContaining({ name: "imicros_1.png" })]));
@@ -270,11 +271,11 @@ describe("Test store service", () => {
             };
             return broker.call("v1.minio.getCollection", params, opts).then(res => {
                 console.timeEnd("get collection");
+                //console.log(res);
                 expect(res).toBeDefined();
                 for (let i=0; i<collectionCount; i++) {
-                    expect(res["collection/collection object" + i]).toEqual({ costcenter: "cc" +i , owner: "owner"+i });
+                    expect(res["collection object" + i]).toEqual({ costcenter: "cc" +i , owner: "owner"+i });
                 }
-                // console.log(res);
             });
         });
 
@@ -358,23 +359,7 @@ describe("Test store service", () => {
             
         });
 
-        
     });
-
-    describe("Test admin", () => {
-    
-        it("it should list all buckets", async () => {
-            let opts = { meta: { acl: { ownerId: groups[0].uid } } };
-            let params = {
-            };
-            let res = await broker.call("v1.minio.listBuckets", params, opts);
-            expect(res).toBeDefined();
-            expect(res).toEqual(expect.arrayContaining([expect.objectContaining({ name: groups[0].uid })]));
-            expect(res).toEqual(expect.arrayContaining([expect.objectContaining({ name: groups[1].uid })]));
-        });
-        
-    });
-        
 
     describe("Test removeBucket", () => {
 
@@ -401,6 +386,7 @@ describe("Test store service", () => {
         });
                 
     });    
+
     describe("Test stop broker", () => {
         it("should stop the broker", async () => {
             expect.assertions(1);

@@ -401,7 +401,7 @@ describe("Test database connection", () => {
             expect(res.instanceId).toEqual(instanceIds[0]);
             expect(res.processId).toEqual(parsedData.process.id);
             expect(res.versionId).toEqual(parsedData.version.id);
-            expect(res.snapshot).toEqual({});
+            expect(res.snapshot).toEqual(null);
             expect(res.version).toEqual(0);
             
         });

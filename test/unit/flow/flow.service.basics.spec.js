@@ -36,7 +36,7 @@ describe("Test flow service basics", () => {
 
     describe("Test create service", () => {
 
-        it("it should start the broker", async () => {
+        it("should start the broker", async () => {
             broker = new ServiceBroker({
                 logger: console,
                 logLevel: "info" //"debug"
@@ -129,7 +129,7 @@ describe("Test flow service basics", () => {
             expect(result.xmlData).toBeDefined();
         });
 
-        it("it should raise the event GroupCreated", async () => {
+        it("should raise the event GroupCreated", async () => {
             const params = {
                 name: "Group created",
                 eventId: "GroupCreated",
@@ -157,13 +157,9 @@ describe("Test flow service basics", () => {
         });
 
         it("should assign the raised event", async () => {
-            const params = {
-                ownerId: groups[0].uid,
-                objectId: queue["events"].find(event => event.event === "event.raised" && event.data.ownerId === groups[0].uid).data.objectId
-            };
-            let result = await broker.call("flow.assignEvent", params, {} );
+            const event = queue["events"].find(event => event.event === "event.raised" && event.data.ownerId === groups[0].uid);
+            let result = await broker.call("flow.assignEvent", event.data, {} );
             expect(result).toEqual(true);
-            //console.log(queue["events"]);
             expect(queue["events"]).toContainObject({ 
                 topic: "events",
                 key: groups[0].uid,
@@ -172,11 +168,105 @@ describe("Test flow service basics", () => {
                     ownerId: groups[0].uid,
                     processId: processes[0].processId,
                     versionId: processes[0].versionId,
-                    objectId: params.objectId,
-                    next: "event.raised"
+                    instanceId: expect.any(String),
+                    objectId: event.data.objectId,
+                    origin: "event.raised"
                 }
             });
         });
+
+        it("should create a new instance", async () => {
+            const event = queue["events"].find(event => event.event === "instance.requested" && event.data.ownerId === groups[0].uid);
+            let result = await broker.call("flow.createInstance", event.data, {} );
+            expect(result).toEqual(true);
+            expect(queue["instance"]).toContainObject({ 
+                topic: "instance",
+                key: groups[0].uid,
+                event: "event.raised",
+                data: {
+                    ownerId: groups[0].uid,
+                    processId: processes[0].processId,
+                    versionId: processes[0].versionId,
+                    instanceId: event.data.instanceId,
+                    objectId: event.data.objectId
+                }
+            });
+        });
+
+        it("should process the event", async () => {
+            const event = queue["instance"].find(event => event.event === "event.raised" && event.data.ownerId === groups[0].uid);
+            let result = await broker.call("flow.processEvent", event.data, {} );
+            expect(result).toEqual(true);
+            expect(queue["instance"]).toContainObject({ 
+                topic: "instance",
+                key: groups[0].uid,
+                event: "instance.processed",
+                data: {
+                    ownerId: groups[0].uid,
+                    instanceId: event.data.instanceId
+                }
+            });
+        });
+
+        it("should continue the instance", async () => {
+            const event = queue["instance"].find(event => event.event === "instance.processed" && event.data.ownerId === groups[0].uid);
+            let result = await broker.call("flow.continueInstance", event.data, {} );
+            expect(result).toEqual(true);
+            expect(queue["instance"]).toContainObject({ 
+                topic: "instance",
+                key: groups[0].uid,
+                event: "job.created",
+                data: {
+                    ownerId: groups[0].uid,
+                    instanceId: event.data.instanceId,
+                    jobId: expect.any(String)
+                }
+            });
+        });
+
+        // TODO: Test processJob
+
+        it ("should commit the job by external worker", async () => {
+            const event = queue["instance"].find(event => event.event === "job.created" && event.data.ownerId === groups[0].uid);
+            const params = {
+                jobId: event.data.jobId,
+                result: { status: "completed" }
+            }
+            let result = await broker.call("flow.commitJob", params, opts);
+            expect(result).toBeDefined();
+            expect(result.jobId).toEqual(event.data.jobId);
+            expect(result.objectId).toEqual(expect.any(String));
+            expect(queue["instance"]).toContainObject({ 
+                topic: "instance",
+                key: groups[0].uid,
+                event: "job.completed",
+                data: {
+                    ownerId: groups[0].uid,
+                    jobId: event.data.jobId,
+                    instanceId: event.data.instanceId,
+                    resultId: result.objectId
+                }
+            });
+        });
+
+        /*
+        it("should complete the job", async () => {
+            const event = queue["instance"].find(event => event.event === "job.created" && event.data.ownerId === groups[0].uid);
+            const job = queue["instance"].find(event => event.event === "job.completed" && event.data.ownerId === groups[0].uid);
+            let result = await broker.call("flow.commitJobInternal", job.data, {} );
+            expect(result).toEqual(true);
+            expect(queue["instance"]).toContainObject({ 
+                topic: "instance",
+                key: groups[0].uid,
+                event: "instance.processed",
+                data: {
+                    ownerId: groups[0].uid,
+                    instanceId: event.data.instanceId
+                }
+            });
+        });
+        */
+
 
 /*** */
 

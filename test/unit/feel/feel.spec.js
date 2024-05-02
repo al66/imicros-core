@@ -55,6 +55,65 @@ describe("Test context service", () => {
             });
         });
         
+        it("it should evaluate a complex expression", () => {
+            let params = {
+                expression: `decision table(
+                    outputs: ["Applicant Risk Rating"],
+                    inputs: ["Applicant Age","Medical History"],
+                    rule list: [
+                        [>60,"good","Medium"],
+                        [>60,"bad","High"],
+                        [[25..60],-,"Medium"],
+                        [<25,"good","Low"],
+                        [<25,"bad","Medium"]
+                    ],
+                    hit policy: "Unique"
+                )`,
+                context: {"Applicant Age": 65, "Medical History": "bad"}
+            };
+            return broker.call("feel.evaluate", params, opts).then(res => {
+                expect(res).toBeDefined();
+                expect(res).toEqual({ "Applicant Risk Rating": "High" });
+            });
+        });
+
+        it("it should evaluate a unary expression", () => {
+            const cell = '"A","B"';
+            let params = {
+                expression: 'a in (' + cell + ')',
+                context: { a: "A"}
+            };
+            return broker.call("feel.evaluate", params, opts).then(res => {
+                expect(res).toBeDefined();
+                expect(res).toEqual(true);
+            });
+        });
+        
+        it("it should evaluate a unary expression", () => {
+            const cell = '-';
+            let params = {
+                expression: 'a in (' + cell + ')',
+                context: { a: "A"}
+            };
+            return broker.call("feel.evaluate", params, opts).then(res => {
+                expect(res).toBeDefined();
+                expect(res).toEqual(true);
+            });
+        });
+
+        it("it should evaluate a unary expression", () => {
+            const cell = '>5';
+            let params = {
+                expression: 'a in (' + cell + ')',
+                context: { a: 10}
+            };
+            return broker.call("feel.evaluate", params, opts).then(res => {
+                expect(res).toBeDefined();
+                expect(res).toEqual(true);
+            });
+        });
+        
+        
         it("it should evaluate xml", () => {
             const filePath = "./assets/Sample.dmn";
             const xmlData = fs.readFileSync(filePath).toString();
@@ -272,7 +331,6 @@ describe("Test context service", () => {
             };
             return broker.call("feel.check", params, opts).then(res => {
                 expect(res).toBeDefined();
-                // console.log(res);
                 expect(res.result).toEqual(false);
                 expect(res.error).toBeDefined();
             });
