@@ -7,7 +7,6 @@ const { v4: uuid } = require("uuid");
 const fs = require("fs");
 const util = require('util');
 const { Constants } = require("../../../lib/classes/util/constants");
-const exp = require("constants");
 
 describe("Test flow: process class ", () => {
 
@@ -25,7 +24,7 @@ describe("Test flow: process class ", () => {
             // broker with retry policy
             broker = new ServiceBroker({
                 logger: console,
-                logLevel: "debug" // "info" //"debug"
+                logLevel: "info" // "info" //"debug"
             });
             expect(broker).toBeDefined();
         });
@@ -47,7 +46,7 @@ describe("Test flow: process class ", () => {
             // parse process
             const parser = new Parser({ logger: broker.logger });
             const xmlData = fs.readFileSync("assets/TimersBasic.bpmn");
-            processData[1]  = parser.parse({id: uuid(), xmlData, objectName: "GroupCreated", ownerId: uuid()});
+            processData[1]  = parser.parse({id: uuid(), xmlData, objectName: "TimersBasic", ownerId: uuid()});
             // console.log("Parsed",util.inspect(processData[1], {showHidden: false, depth: null, colors: true}));
             expect(processData[1]).toBeDefined();
         });

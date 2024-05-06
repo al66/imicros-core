@@ -1,13 +1,21 @@
 "use strict";
-const { DMNConverter } = require("imicros-feel-interpreter");
 const { Process } = require("../../../lib/classes/flow/process");
+const { CreateInstance,
+        RaiseEvent,
+        CommitJob } = require("../../../lib/classes/flow/commands/commands");
 
 // helpers & mocks
 const { ServiceBroker } = require("moleculer");
 const { Parser } = require("../../../lib/classes/flow/parser");
+const { DefaultDatabase } = require("../../../lib/classes/flow/basic/database");
+const { Interpreter, DMNConverter } = require("imicros-feel-interpreter");
 const { v4: uuid } = require("uuid");
 const fs = require("fs");
 const util = require('util');
+const owner = uuid();
+const accessToken = uuid();
+const processId = uuid();
+const instanceId = uuid();
 
 // called services
 const TemplateService = {
@@ -49,7 +57,7 @@ const MailService = {
 
 describe("Test flow: process UserConfirmationRequested ", () => {
 
-    let broker, parsedData, executionResult;
+    let broker, db, parsedData, interpreter, expression, continueVersion;
 
     beforeEach(() => {
     });
@@ -63,7 +71,7 @@ describe("Test flow: process UserConfirmationRequested ", () => {
             // broker with retry policy
             broker = new ServiceBroker({
                 logger: console,
-                logLevel: "debug", // "info" //"debug"
+                logLevel: "info", // "info" //"debug"
                 retryPolicy: {
                     enabled: true,
                     retries: 5,
@@ -89,89 +97,186 @@ describe("Test flow: process UserConfirmationRequested ", () => {
             const xmlData = fs.readFileSync("assets/UserConfirmationRequested.bpmn");
             parsedData = parser.parse({id: uuid(), xmlData, objectName: "Process Example", ownerId: uuid()});
 
-            // add embedded business rule
-            const xmlDataDMN = fs.readFileSync("assets/UserConfirmationTemplates.dmn").toString();
-            const expression = new DMNConverter().convert({ xml: xmlDataDMN });
-            parsedData.task.find(task => task.calledDecision?.id === "Determine User Confirmation Templates").calledDecision.expression = expression;
-
-            console.log("Parsed",util.inspect(parsedData, {showHidden: false, depth: null, colors: true}));
+            //console.log("Parsed",util.inspect(parsedData, {showHidden: false, depth: null, colors: true}));
             expect(parsedData).toBeDefined();
         });
+
+        it("it should create a new database instance", async () => {
+            db = new DefaultDatabase();
+            expect(db).toBeDefined();
+        });
+
+        it("it should read the DMN file called in the process and create interpreter", async () => {
+            const xmlDataDMN = fs.readFileSync("assets/UserConfirmationTemplates.dmn").toString();
+            interpreter = new Interpreter();
+            expression = new DMNConverter().convert({ xml: xmlDataDMN })
+            expect(xmlDataDMN).toBeDefined();
+            expect(interpreter).toBeDefined();
+            expect(expression).toBeDefined();
+        });
+
 
     });
 
     describe("Test process execution", () => {
     
         it("it should raise the event UserConfirmationRequested", async () => {
-            const process = new Process({ logger: broker.logger  });
-            executionResult = await process.raiseEvent({ 
-                eventName: "UserConfirmationRequested", 
-                payload: { 
-                    "userId": "0969cfa5-f658-44ba-a429-c2cd04bef375", 
-                    "email": "john.doe@my-company.com",
-                    "locale": "en-US",
-                    "confirmationToken": "...signed JSON web token..."
-                 },
-                processData: parsedData,
-                snapshot: null,
-                instanceId: uuid()
-            });
-            expect(executionResult).toBeDefined();
-            expect(executionResult.snapshot).toBeDefined();
-            expect(executionResult.snapshot.context.jobs.length > 0).toBe(true);
+            const process = new Process({ db, logger: broker.logger });
+            await process.load({ owner, accessToken, uid: instanceId });
+            await process.execute(new CreateInstance({ instanceId, processData: parsedData }));
+            await process.execute(new RaiseEvent({ instanceId, eventId: "UserConfirmationRequested", payload: { 
+                "userId": "0969cfa5-f658-44ba-a429-c2cd04bef375", 
+                "email": "john.doe@my-company.com",
+                "locale": "en-US",
+                "confirmationToken": "...signed JSON web token..."
+            }}));
+            const version = process.getVersion();
+            continueVersion = process.getVersion();
+            await process.persist({ owner, accessToken });
+            const jobs = await process.getJobs({ version });
+            const throwing = await process.getThrowing({ version });
+            const stored = await db.getApp({ owner, accessToken, uid: instanceId, fromBeginning: true });
+            // console.log("Throwing",util.inspect(throwing, {showHidden: false, depth: 1, colors: true}));
+            // console.log("Jobs",util.inspect(jobs, {showHidden: false, depth: 1, colors: true}));
+            // console.log("Stored",util.inspect(stored, {showHidden: false, depth: 1, colors: true}));
+            expect(version).toBe(0);
+            expect(jobs.length === 1).toBe(true);
+            expect(throwing.length === 0).toBe(true);
+            expect(stored.version).toBe(1);
+            expect(stored.uid).toBe(instanceId);
+            expect(stored.events.length > 1).toBe(true);
         });
 
-        it("it should commit the jobs", async () => {
-            const process = new Process({ logger: broker.logger  });
-            while (executionResult.snapshot.context.jobs.length > 0) {
-                const job = executionResult.snapshot.context.jobs.shift();
-                // console.log("Job",util.inspect(job, {showHidden: false, depth: null, colors: true}));
-                const service = job.element.taskDefinition?.type;
+        it("it should commit the business rule task of the first cycle", async () => {
+            const process = new Process({ db, logger: broker.logger });
+            await process.load({ owner, accessToken, uid: instanceId });
+            let jobs = await process.getJobs({ version: continueVersion });
+            for (const job of jobs) {
+                const service = job.taskDefinition?.type;
+                const decision = job.calledDecision?.id;
                 if (service) {
                     try {
-                        const jobResult = await broker.call(service, job.data, { retries: 3 });
+                        const result = await broker.call(service, job.data, { retries: job.taskDefinition?.retries || 0 });
                         const jobId = job.jobId || null;
-                        executionResult = await process.commitJob({ jobId, result: jobResult, snapshot: executionResult.snapshot });
+                        await process.execute(new CommitJob({ jobId, result }));
                     } catch (err) {
-                        const error = { message: err.message };
-                        broker.logger.error("Error",error);
-                        executionResult = await process.failedJob({ jobId: job.jobId, error, snapshot: executionResult.snapshot });
+                        //broker.logger.error("Error",err);
+                        await process.execute(new CommitJob({ jobId: job.jobId, error: err }));
                     }
                 }
+                if (decision) {
+                    const result = interpreter.evaluate({ expression, context: job.data });
+                    const jobId = job.jobId || null;
+                    await process.execute(new CommitJob({ jobId, result }));
+                }
             }
-            broker.logger.debug("Done");
-            // show log
-            for (const log of executionResult.snapshot.context.log) {
-                broker.logger.debug(log.message, log.data);
+            const version = process.getVersion();
+            continueVersion = process.getVersion();
+            await process.persist({ owner, accessToken });
+            jobs = await process.getJobs({ version });
+            const throwing = await process.getThrowing({ version });
+            const stored = await db.getApp({ owner, accessToken, uid: instanceId, fromBeginning: true });
+            // console.log("Throwing",util.inspect(throwing, {showHidden: false, depth: 1, colors: true}));
+            //console.log("Jobs",util.inspect(jobs, {showHidden: false, depth: 1, colors: true}));
+            //console.log("Stored",util.inspect(stored, {showHidden: false, depth: null, colors: true}));
+            expect(version).toBe(1);
+            expect(jobs.length).toBe(2);
+            expect(throwing.length === 0).toBe(true);
+            expect(stored.version).toBe(2);
+            expect(stored.uid).toBe(instanceId);
+            expect(stored.events.length > 1).toBe(true);
+        });
+
+        it("it should commit the render tasks", async () => {
+            const process = new Process({ db, logger: broker.logger });
+            await process.load({ owner, accessToken, uid: instanceId });
+            let jobs = await process.getJobs({ version: continueVersion });
+            for (const job of jobs) {
+                const service = job.taskDefinition?.type;
+                const decision = job.calledDecision?.id;
+                if (service) {
+                    try {
+                        const result = await broker.call(service, job.data, { retries: job.taskDefinition?.retries || 0 });
+                        const jobId = job.jobId || null;
+                        await process.execute(new CommitJob({ jobId, result }));
+                    } catch (err) {
+                        //broker.logger.error("Error",err);
+                        await process.execute(new CommitJob({ jobId: job.jobId, error: err }));
+                    }
+                }
+                if (decision) {
+                    const result = interpreter.evaluate({ expression, context: job.data });
+                    const jobId = job.jobId || null;
+                    await process.execute(new CommitJob({ jobId, result }));
+                }
             }
-            // show raised events
-            for (const event of executionResult.snapshot.context.events) {
-                broker.logger.debug("Raised", event);
+            const version = process.getVersion();
+            continueVersion = process.getVersion();
+            await process.persist({ owner, accessToken });
+            jobs = await process.getJobs({ version });
+            const throwing = await process.getThrowing({ version });
+            const stored = await db.getApp({ owner, accessToken, uid: instanceId, fromBeginning: true });
+            // console.log("Throwing",util.inspect(throwing, {showHidden: false, depth: 1, colors: true}));
+            //console.log("Jobs",util.inspect(jobs, {showHidden: false, depth: 1, colors: true}));
+            //console.log("Stored",util.inspect(stored, {showHidden: false, depth: null, colors: true}));
+            expect(version).toBe(2);
+            expect(jobs.length).toBe(1);
+            expect(throwing.length === 0).toBe(true);
+            expect(stored.version).toBe(3);
+            expect(stored.uid).toBe(instanceId);
+            expect(stored.events.length > 1).toBe(true);
+        });
+
+        it("it should commit the send task", async () => {
+            const process = new Process({ db, logger: broker.logger });
+            await process.load({ owner, accessToken, uid: instanceId });
+            let jobs = await process.getJobs({ version: continueVersion });
+            for (const job of jobs) {
+                const service = job.taskDefinition?.type;
+                const decision = job.calledDecision?.id;
+                if (service) {
+                    try {
+                        const result = await broker.call(service, job.data, { retries: job.taskDefinition?.retries || 0 });
+                        const jobId = job.jobId || null;
+                        await process.execute(new CommitJob({ jobId, result }));
+                    } catch (err) {
+                        //broker.logger.error("Error",err);
+                        await process.execute(new CommitJob({ jobId: job.jobId, error: err }));
+                    }
+                }
+                if (decision) {
+                    const result = interpreter.evaluate({ expression, context: job.data });
+                    const jobId = job.jobId || null;
+                    await process.execute(new CommitJob({ jobId, result }));
+                }
             }
-            expect(executionResult.snapshot.context.jobs.length === 0).toBe(true);
-            expect(executionResult.snapshot.context.events.length === 2).toBe(true);
-            // broker.logger.debug("Children",executionResult.snapshot);
-            expect(executionResult.snapshot.value).toEqual("completed");
-            expect(executionResult.snapshot.context.events).toEqual(
+            const version = process.getVersion();
+            continueVersion = process.getVersion();
+            await process.persist({ owner, accessToken });
+            jobs = await process.getJobs({ version });
+            const throwing = await process.getThrowing({ version });
+            const stored = await db.getApp({ owner, accessToken, uid: instanceId, fromBeginning: true });
+            //console.log("Throwing",util.inspect(throwing, {showHidden: false, depth: null, colors: true}));
+            //console.log("Jobs",util.inspect(jobs, {showHidden: false, depth: 1, colors: true}));
+            //console.log("Stored",util.inspect(stored, {showHidden: false, depth: null, colors: true}));
+            expect(version).toBe(3);
+            expect(jobs.length).toBe(0);
+            expect(throwing.length).toBe(1);
+            expect(throwing).toEqual(
                 expect.arrayContaining([
                     expect.objectContaining({
-                        name: "UserConfirmationRequestFailed",
+                        eventId: "UserConfirmationRequestFailed",
                         payload:{
                             to: "john.doe@my-company.com"
-                        }
-                    }),
-                    expect.objectContaining({
-                        name: "Send mail error",
-                        payload:{
-                            error: {
-                                message: "Invalid account or recipient"
-                            }
                         }
                     })
                 ])
             );
+            expect(stored.version).toBe(4);
+            expect(stored.uid).toBe(instanceId);
+            expect(stored.events.length > 1).toBe(true);
         });
-        
+
     });
 
     describe("Test stop broker", () => {

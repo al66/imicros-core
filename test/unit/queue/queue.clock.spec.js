@@ -38,7 +38,7 @@ describe("Test queue publisher service", () => {
         it("it should start the broker", async () => {
             broker = new ServiceBroker({
                 logger: console,
-                logLevel: "info" //"debug"
+                logLevel: "debug" // "info" //"debug"
             });
             broker.createService({ 
                 name: "clock",

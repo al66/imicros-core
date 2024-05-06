@@ -3,7 +3,7 @@ const { DB } = require("../../../lib/classes/db/cassandraFlow");
 const { Parser } = require("../../../lib/classes/flow/parser");
 const { VaultServiceAccess } = require("../../../lib/classes/provider/vault");
 const { GroupsServiceAccess } = require("../../../lib/classes/provider/groups");
-const { v4: uuid } = require("uuid");
+const { v4: uuid, v1: uuid1 } = require("uuid");
 const { Constants } = require("../../../lib/classes/util/constants");
 
 // helper & mocks
@@ -106,6 +106,7 @@ describe("Test database connection", () => {
         };
         let instanceIds = [uuid()];
         let subscriptionIds = [uuid(),uuid()];
+        const finshedEvents = [];
 
         it("it should preserve a key", async () => {
             const result = await db.preserveUniqueKey({ 
@@ -376,78 +377,181 @@ describe("Test database connection", () => {
             
         });
 
-        it("it should create an instance", async () => {
-            let params = {
-                owner: owner[0], 
-                instanceId: instanceIds[0],
-                processId: parsedData.process.id, 
-                versionId: parsedData.version.id
-            };
-            const res = await db.createInstance(params)
-            expect(res).toBeDefined();
-            expect(res).toEqual(true);
-            
-        });
-
-        it("it should retrieve the new instance", async () => {
-            let params = {
+        it("it should fail to add an event for a non-existing version", async () => {
+            let params = { 
                 owner: owner[0], 
                 accessToken,
-                instanceId: instanceIds[0]
-            };
-            const res = await db.getInstance(params);
-            expect(res).toBeDefined();
-            expect(res.ownerId).toEqual(owner[0]);
-            expect(res.instanceId).toEqual(instanceIds[0]);
-            expect(res.processId).toEqual(parsedData.process.id);
-            expect(res.versionId).toEqual(parsedData.version.id);
-            expect(res.snapshot).toEqual(null);
-            expect(res.version).toEqual(0);
-            
-        });
-
-        it("it should save an instance", async () => {
-            // await new Promise(resolve => setTimeout(resolve, 200));
-            let params = {
-                owner: owner[0], 
-                accessToken,
-                instanceId: instanceIds[0],
+                processId: parsedData.process.id,
+                versionId: parsedData.version.id,
+                uid: instanceIds[0],
                 version: 1,
-                snapshot: { context: "test" }  
+                event: { type: "wrong", $_timeuuid: uuid1() }
             };
-            const res = await db.saveInstance(params)
-            expect(res).toBeDefined();
-            expect(res).toEqual(true);
+            const result = await db.persistApp(params);
+            expect(result).toEqual(false);
         });
 
-        it("it should retrieve the instance with snapshot again", async () => {
-            let params = {
+        it("it should add an event", async () => {
+            let params = { 
                 owner: owner[0], 
                 accessToken,
-                instanceId: instanceIds[0]
+                processId: parsedData.process.id,
+                versionId: parsedData.version.id,
+                uid: instanceIds[0],
+                version: 0,
+                event: { type: "any", $_timeuuid: uuid1()  }
             };
-            const res = await db.getInstance(params);
-            expect(res).toBeDefined();
-            expect(res.ownerId).toEqual(owner[0]);
-            expect(res.instanceId).toEqual(instanceIds[0]);
-            expect(res.processId).toEqual(parsedData.process.id);
-            expect(res.versionId).toEqual(parsedData.version.id);
-            expect(res.snapshot).toEqual({ context: "test" });
-            expect(res.version).toEqual(1);
-            
+            const result = await db.persistApp(params);
+            expect(result).toEqual(true);
         });
 
-        it("it should save next version of instance", async () => {
-            let params = {
+        it("it should add a second event", async () => {
+            let params = { 
                 owner: owner[0], 
                 accessToken,
-                instanceId: instanceIds[0],
+                processId: parsedData.process.id,
+                versionId: parsedData.version.id,
+                uid: instanceIds[0],
+                version: 0,
+                event: { type: "second", $_timeuuid: uuid1()  }
+            };
+            const result = await db.persistApp(params);
+            expect(result).toEqual(true);
+        });
+
+        it("it should read all events", async () => {
+            const result = await db.getApp({ 
+                owner: owner[0], 
+                accessToken,
+                uid: instanceIds[0]
+            });
+            expect(result.uid).toEqual(instanceIds[0]);
+            expect(result.events[0]).toEqual(expect.objectContaining({ type: "any" }));
+            timeuuid = result.events[0].$_timeuuid;
+            expect(result.events[1]).toEqual(expect.objectContaining({ type: "second" }));
+        });
+
+        it("it should save a snapshot", async () => {
+            const result = await db.saveAppSnapshot({ 
+                owner: owner[0],
+                accessToken,
+                uid: instanceIds[0],
+                version: 1,
+                snapshot: { state: "first event applied" },
+                timeuuid
+            });
+            expect(result).toEqual(true);
+        });
+
+        /* not working w/o the leightweight transaction
+           but ist should not be called anyway as we ensure the sequence by using the 
+           instance key in the KAFKA partition
+        it("it should fail to save a snapshot for a previous version", async () => {
+            const result = await db.saveAppSnapshot({ 
+                owner: owner[0],
+                accessToken,
+                uid: instanceIds[0],
+                version: 1,
+                snapshot: { state: "first event applied" },
+                timeuuid
+            });
+            expect(result).toEqual(false);
+        });
+        */
+
+        it("it should return all events", async () => {
+            const result = await db.getApp({ 
+                owner: owner[0], 
+                accessToken,
+                uid: instanceIds[0],
+                fromBeginning: true
+            });
+            expect(result.uid).toEqual(instanceIds[0]);
+            expect(result.events[0]).toEqual(expect.objectContaining({ type: "any" }));
+            expect(result.events[1]).toEqual(expect.objectContaining({ type: "second" }));
+        });
+
+        it("it should return the snapshot and the last event", async () => {
+            const result = await db.getApp({ 
+                owner: owner[0], 
+                accessToken,
+                uid: instanceIds[0]
+            });
+            expect(result.uid).toEqual(instanceIds[0]);
+            expect(result.snapshot).toEqual({ state: "first event applied" });
+            expect(result.timeuuid).toEqual(timeuuid);
+            expect(result.version).toEqual(1);
+            expect(result.events.length).toEqual(1);
+            expect(result.events[0]).toEqual(expect.objectContaining({ type: "second" }));
+        });
+
+        it("it should add a third event", async () => {
+            let params = { 
+                owner: owner[0], 
+                accessToken,
+                processId: parsedData.process.id,
+                versionId: parsedData.version.id,
+                uid: instanceIds[0],
+                version: 1,
+                event: { type: "third", $_timeuuid: uuid1()  }
+            };
+            const result = await db.persistApp(params);
+            expect(result).toEqual(true);
+        });
+
+        it("it should return the snapshot and the last two events", async () => {
+            const result = await db.getApp({ 
+                owner: owner[0], 
+                accessToken,
+                uid: instanceIds[0]
+            });
+            expect(result.uid).toEqual(instanceIds[0]);
+            expect(result.snapshot).toEqual({ state: "first event applied" });
+            expect(result.timeuuid).toEqual(timeuuid);
+            expect(result.version).toEqual(1);
+            expect(result.events.length).toEqual(2);
+            expect(result.events[0]).toEqual(expect.objectContaining({ type: "second" }));
+            expect(result.events[1]).toEqual(expect.objectContaining({ type: "third" }));
+            timeuuid = result.events[1].$_timeuuid;
+        });
+
+        it("it should save a snapshot for the last version", async () => {
+            const result = await db.saveAppSnapshot({ 
+                owner: owner[0],
+                accessToken,
+                uid: instanceIds[0],
                 version: 2,
-                snapshot: { context: { a: "test", b: 123 } }  
-            };
-            const res = await db.saveInstance(params);
-            expect(res).toBeDefined();
-            expect(res).toEqual(true);
+                snapshot: { state: "all three events applied" },
+                timeuuid
+            });
+            expect(result).toEqual(true);
+        });
+
+        it("it should return the last snapshot w/o events to be applied", async () => {
+            const result = await db.getApp({ 
+                owner: owner[0], 
+                accessToken,
+                uid: instanceIds[0]
+            });
+            expect(result.uid).toEqual(instanceIds[0]);
+            expect(result.snapshot).toEqual({ state: "all three events applied" });
+            expect(result.timeuuid).toEqual(timeuuid);
+            expect(result.version).toEqual(2);
+            expect(result.events.length).toEqual(0);
+        });
+
+        it("it should return all events of the last version", async () => {
+            const result = await db.getApp({ 
+                owner: owner[0], 
+                accessToken,
+                uid: instanceIds[0],
+                fromBeginning: true
+            });
+            expect(result.uid).toEqual(instanceIds[0]);
+            expect(result.events[0]).toEqual(expect.objectContaining({ type: "any" }));
+            expect(result.events[1]).toEqual(expect.objectContaining({ type: "second" }));
+            expect(result.events[2]).toEqual(expect.objectContaining({ type: "third" }));
+            finshedEvents.push(...result.events);
         });
 
         it("it sould add a timer", async () => {
@@ -467,22 +571,6 @@ describe("Test database connection", () => {
             const res = await db.addTimer(params)
             expect(res).toBeDefined();
             expect(res).toEqual(true);
-        });
-
-        it("it should retrieve the updated instance", async () => {
-            let params = {
-                owner: owner[0], 
-                accessToken,
-                instanceId: instanceIds[0]
-            };
-            const res = await db.getInstance(params)
-            expect(res).toBeDefined();
-            expect(res.ownerId).toEqual(owner[0]);
-            expect(res.instanceId).toEqual(instanceIds[0]);
-            expect(res.processId).toEqual(parsedData.process.id);
-            expect(res.versionId).toEqual(parsedData.version.id);
-            expect(res.snapshot).toEqual({ context: { a: "test", b: 123 } });
-            expect(res.version).toEqual(2);
         });
 
         it("it should retrieve the active version list for the owner", () => {
@@ -513,7 +601,8 @@ describe("Test database connection", () => {
                 processId: parsedData.process.id,
                 versionId: parsedData.version.id,
                 completed: true,
-                snapshot: { context: { a: "test", b: 123 } }
+                snapshot: { context: { a: "test", b: 123 } },
+                events: finshedEvents
             };
             const res = await db.finishInstance(params)
             expect(res).toBeDefined();
@@ -536,6 +625,7 @@ describe("Test database connection", () => {
             expect(res.snapshot).toEqual({ context: { a: "test", b: 123 } });
             expect(res.version).toEqual(2);
             expect(res.completed).toEqual(true);
+            expect(res.events).toEqual(finshedEvents);
         });
 
         it("it should retrieve the active version list w/o the finished instance", () => {

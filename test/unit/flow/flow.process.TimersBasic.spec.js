@@ -27,7 +27,7 @@ describe("Test flow: process TimersBasic ", () => {
                 // broker with retry policy
                 broker = new ServiceBroker({
                     logger: console,
-                    logLevel: "debug", // "info" //"debug"
+                    logLevel: "info", // "info" //"debug"
                     retryPolicy: {
                         enabled: true,
                         retries: 5,

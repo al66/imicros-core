@@ -17,6 +17,18 @@ const fs = require("fs");
 const { v4: uuid } = require("uuid");
 const flowServiceId = process.env.SERVICE_ID_FLOW || uuid();
 
+// called services
+const AnyService = {
+    name: "some",
+    actions: {
+        stuff: {
+            async handler(ctx) {
+                return true;
+            }
+        }
+    }
+}
+
 describe("Test flow service basics", () => {
 
     let broker, service, opts = {}, userId = uuid(), processes = [];
@@ -54,7 +66,7 @@ describe("Test flow service basics", () => {
                 }
             });
             // Start additional services
-            [QueueServiceMock, StoreServiceMock, GroupsServiceMock, VaultServiceMock].map(service => { return broker.createService(service); }); 
+            [AnyService, QueueServiceMock, StoreServiceMock, GroupsServiceMock, VaultServiceMock].map(service => { return broker.createService(service); }); 
             await broker.start();
             expect(service).toBeDefined();
         });
@@ -181,7 +193,7 @@ describe("Test flow service basics", () => {
             expect(result).toEqual(true);
             expect(queue["instance"]).toContainObject({ 
                 topic: "instance",
-                key: groups[0].uid,
+                key: groups[0].uid + event.data.instanceId,
                 event: "event.raised",
                 data: {
                     ownerId: groups[0].uid,
@@ -199,11 +211,12 @@ describe("Test flow service basics", () => {
             expect(result).toEqual(true);
             expect(queue["instance"]).toContainObject({ 
                 topic: "instance",
-                key: groups[0].uid,
+                key: groups[0].uid + event.data.instanceId,
                 event: "instance.processed",
                 data: {
                     ownerId: groups[0].uid,
-                    instanceId: event.data.instanceId
+                    instanceId: event.data.instanceId,
+                    version: 1
                 }
             });
         });
@@ -214,7 +227,7 @@ describe("Test flow service basics", () => {
             expect(result).toEqual(true);
             expect(queue["instance"]).toContainObject({ 
                 topic: "instance",
-                key: groups[0].uid,
+                key: groups[0].uid + event.data.instanceId,
                 event: "job.created",
                 data: {
                     ownerId: groups[0].uid,
@@ -230,7 +243,7 @@ describe("Test flow service basics", () => {
             const event = queue["instance"].find(event => event.event === "job.created" && event.data.ownerId === groups[0].uid);
             const params = {
                 jobId: event.data.jobId,
-                result: { status: "completed" }
+                result: true
             }
             let result = await broker.call("flow.commitJob", params, opts);
             expect(result).toBeDefined();
@@ -238,7 +251,7 @@ describe("Test flow service basics", () => {
             expect(result.objectId).toEqual(expect.any(String));
             expect(queue["instance"]).toContainObject({ 
                 topic: "instance",
-                key: groups[0].uid,
+                key: groups[0].uid + event.data.instanceId,
                 event: "job.completed",
                 data: {
                     ownerId: groups[0].uid,
@@ -249,27 +262,50 @@ describe("Test flow service basics", () => {
             });
         });
 
-        /*
-        it("should complete the job", async () => {
+        it("should process job commit", async () => {
             const event = queue["instance"].find(event => event.event === "job.created" && event.data.ownerId === groups[0].uid);
             const job = queue["instance"].find(event => event.event === "job.completed" && event.data.ownerId === groups[0].uid);
-            let result = await broker.call("flow.commitJobInternal", job.data, {} );
+            let result = await broker.call("flow.processCommitJob", job.data, {} );
             expect(result).toEqual(true);
             expect(queue["instance"]).toContainObject({ 
                 topic: "instance",
-                key: groups[0].uid,
+                key: groups[0].uid + event.data.instanceId,
                 event: "instance.processed",
                 data: {
                     ownerId: groups[0].uid,
-                    instanceId: event.data.instanceId
+                    instanceId: event.data.instanceId,
+                    version: 2
                 }
             });
         });
-        */
 
+        it("should continue the instance throwing the end event", async () => {
+            const event = queue["instance"].find(event => event.event === "instance.processed" && event.data.ownerId === groups[0].uid && event.data.version === 2);
+            let result = await broker.call("flow.continueInstance", event.data, {} );
+            expect(result).toEqual(true);
+            expect(queue["events"]).toContainObject({ 
+                topic: "events",
+                key: groups[0].uid,
+                event: "event.raised",
+                data: {
+                    ownerId: groups[0].uid,
+                    objectId: expect.any(String)
+                }
+            });
+            expect(queue["events"].filter(event => event.event === "event.raised" && event.data.ownerId === groups[0].uid).length).toBe(2);
+        });
 
-/*** */
-
+        it("should get the raised end event", async () => { 
+            const events = queue["events"].filter(event => event.event === "event.raised" && event.data.ownerId === groups[0].uid);
+            const event = events[events.length-1];
+            let result = await broker.call("flow.getObject", { objectId: event.data.objectId }, opts );
+            expect(result).toBeDefined();
+            expect(result.eventId).toEqual("GroupCreationCompleted");
+            expect(result.payload).toEqual({
+                groupId: "0969cfa5-f658-44ba-a429-c2cd04bef375",
+                someStuff: true
+            });
+        });
 
         it("should deactivate a version", async () => {
             const params = {

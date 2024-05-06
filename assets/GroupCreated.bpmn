@@ -27,24 +27,25 @@
       <bpmn:incoming>Flow_1qrt9f9</bpmn:incoming>
       <bpmn:outgoing>Flow_1u2y06w</bpmn:outgoing>
     </bpmn:exclusiveGateway>
-    <bpmn:endEvent id="GroupCreationCompleted">
-      <bpmn:extensionElements>
-        <zeebe:ioMapping>
-          <zeebe:output source="={ groupId: group.groupId }" />
-        </zeebe:ioMapping>
-      </bpmn:extensionElements>
-      <bpmn:incoming>Flow_1u2y06w</bpmn:incoming>
-    </bpmn:endEvent>
     <bpmn:sequenceFlow id="Flow_1u2y06w" sourceRef="Gateway_0yddana" targetRef="GroupCreationCompleted" />
     <bpmn:sequenceFlow id="Flow_1rrzvbx" name="domain = my-company.com" sourceRef="Gateway_0fx4b1a" targetRef="Activity_0tmxybp">
       <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">=group.domain = "my-company.com"</bpmn:conditionExpression>
     </bpmn:sequenceFlow>
     <bpmn:sequenceFlow id="Flow_1qrt9f9" sourceRef="Activity_0tmxybp" targetRef="Gateway_0yddana" />
+    <bpmn:endEvent id="GroupCreationCompleted">
+      <bpmn:extensionElements>
+        <zeebe:ioMapping>
+          <zeebe:output source="={ groupId: group.groupId, someStuff: someStuff }" />
+        </zeebe:ioMapping>
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_1u2y06w</bpmn:incoming>
+    </bpmn:endEvent>
     <bpmn:serviceTask id="Activity_0tmxybp" name="Do some stuff">
       <bpmn:extensionElements>
         <zeebe:taskDefinition type="some.stuff" retries="3" />
         <zeebe:ioMapping>
           <zeebe:input source="=group" target="group" />
+          <zeebe:output source="=result" target="someStuff" />
         </zeebe:ioMapping>
       </bpmn:extensionElements>
       <bpmn:incoming>Flow_1rrzvbx</bpmn:incoming>
