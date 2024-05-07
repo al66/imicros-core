@@ -1,7 +1,7 @@
 {
   "name": "imicros-core",
-  "version": "0.0.1",
-  "description": "authentification & authorization services for imicros-backend",
+  "version": "0.0.2",
+  "description": "core services for imicros-backend",
   "main": "index.js",
   "directories": {
     "lib": "lib"
@@ -27,7 +27,7 @@
     "test-feel": "jest test/unit/feel --no-cache  --config=local.js",
     "test-template": "jest test/unit/templates --no-cache  --config=local.js",
     "test-map": "jest test/unit/map --no-cache  --config=local.js",
-    "test-exchange": "jest test/unit/exchange --no-cache  --config=local.js",
+    "test-exchange": "jest test/unit/exchange --no-cache  --config=local.js --log=console",
     "test-queue": "jest test/unit/queue --no-cache  --config=local.js",
     "test-clock": "jest test/unit/queue/queue.clock.spec.js --no-cache  --config=local.js --log=console",
     "test-timer": "jest test/unit/timer --no-cache  --config=local.js",
@@ -35,7 +35,7 @@
     "test-flow-class": "jest test/unit/flow/flow.process.class* --no-cache  --config=local.js --log=console",
     "test-flow-process": "jest test/unit/flow/flow.process* --no-cache  --config=local.js --log=console",
     "test-flow-service": "jest test/unit/flow/flow.service.basics.spec.js --no-cache  --config=local.js --log=console",
-    "test-flow-s": "jest test/unit/flow/flow.process.Message* --no-cache  --config=local.js --log=console",
+    "test-flow-s": "jest test/unit/flow/flow.service.Fetch* --no-cache  --config=local.js --log=console",
     "test-i-admin": "jest test/integration/01-admin.spec.js --no-cache  --config=local.js  --forceExit",
     "test-i-newUser": "jest test/integration/02-newUser.spec.js --runInBand --no-cache  --config=local.js",
     "test-i-store": "jest test/integration/03-store.spec.js --runInBand --no-cache  --config=local.js"

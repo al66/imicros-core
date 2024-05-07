@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:zeebe="http://camunda.org/schema/zeebe/1.0" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" xmlns:modeler="http://camunda.org/schema/modeler/1.0" id="Definitions_1amoi8v" targetNamespace="http://bpmn.io/schema/bpmn" exporter="Camunda Modeler" exporterVersion="5.20.0" modeler:executionPlatform="Camunda Cloud" modeler:executionPlatformVersion="8.4.0">
+  <bpmn:process id="Process_0p4in3b" isExecutable="true">
+    <bpmn:startEvent id="StartEvent_1" name="Message MyMessageCode received">
+      <bpmn:extensionElements>
+        <zeebe:ioMapping>
+          <zeebe:output source="={ notification: notification, message: message }" target="received" />
+          <zeebe:output source="=notification" target="notification" />
+          <zeebe:output source="=message" target="message" />
+        </zeebe:ioMapping>
+      </bpmn:extensionElements>
+      <bpmn:outgoing>Flow_14br3ms</bpmn:outgoing>
+      <bpmn:messageEventDefinition id="MessageEventDefinition_1iygjd5" messageRef="Message_36vpcvl" />
+    </bpmn:startEvent>
+    <bpmn:sequenceFlow id="Flow_14br3ms" sourceRef="StartEvent_1" targetRef="Activity_18dqn7n" />
+    <bpmn:serviceTask id="Activity_18dqn7n" name="Get order appendix and save it">
+      <bpmn:extensionElements>
+        <zeebe:taskDefinition type="v1.exchange.getAppendix" retries="3" />
+        <zeebe:ioMapping>
+          <zeebe:input source="=notification.sender" target="sender" />
+          <zeebe:input source="=notification.messageId" target="messageId" />
+          <zeebe:input source="=message.orderXML._ref.id" target="appendixId" />
+          <zeebe:input source="=notification.fetchToken" target="fetchToken" />
+          <zeebe:input source="=&#34;receivedMassage/&#34;+notification.messageId+&#34;.xml&#34;" target="path" />
+        </zeebe:ioMapping>
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_14br3ms</bpmn:incoming>
+      <bpmn:outgoing>Flow_0r9a8da</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:endEvent id="OrderSaved" name="Order saved">
+      <bpmn:extensionElements>
+        <zeebe:ioMapping>
+          <zeebe:output source="=&#34;receivedMassage/&#34;+notification.messageId+&#34;.xml&#34;" target="path" />
+        </zeebe:ioMapping>
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_0r9a8da</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:sequenceFlow id="Flow_0r9a8da" sourceRef="Activity_18dqn7n" targetRef="OrderSaved" />
+  </bpmn:process>
+  <bpmn:message id="Message_36vpcvl" name="MyMessageCode" />
+  <bpmn:message id="Message_01qmmvv" name="Message_01qmmvv" />
+  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Process_0p4in3b">
+      <bpmndi:BPMNShape id="Activity_0ansctq_di" bpmnElement="Activity_18dqn7n">
+        <dc:Bounds x="310" y="80" width="100" height="80" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Event_0iov0oa_di" bpmnElement="OrderSaved">
+        <dc:Bounds x="502" y="102" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="490" y="145" width="61" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Event_0imvek7_di" bpmnElement="StartEvent_1">
+        <dc:Bounds x="182" y="102" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="158" y="145" width="87" height="40" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Flow_14br3ms_di" bpmnElement="Flow_14br3ms">
+        <di:waypoint x="218" y="120" />
+        <di:waypoint x="310" y="120" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_0r9a8da_di" bpmnElement="Flow_0r9a8da">
+        <di:waypoint x="410" y="120" />
+        <di:waypoint x="502" y="120" />
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>

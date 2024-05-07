@@ -7,6 +7,7 @@ const { Constants } = require("../../../lib/classes/util/constants");
 const { VaultProvider } = require("../../../lib/provider/vault");
 const { GroupsProvider } = require("../../../lib/provider/groups");
 const { StoreProvider } = require("../../../lib/provider/store");
+const { QueueProvider } = require("../../../lib/provider/queue");
 const axios = require('axios');
 
 // helper & mocks
@@ -14,6 +15,7 @@ const axios = require('axios');
 const { credentials } = require("../../helper/credentials");
 // const { StoreMixin, put, get, getStore } = require("../../mocks/store.mixin");
 const { StoreServiceMock, put, get } = require("../../mocks/store");
+const { QueueServiceMock, queue } = require("../../mocks/queue");
 const { Collect, events, initEvents } = require("../../helper/collect");
 const { GroupsServiceMock } = require("../../mocks/groups");
 const { VaultServiceMock } = require("../../mocks/vault");
@@ -29,14 +31,14 @@ const remoteReceivers = [uuid()+`#${ remoteHost}`, uuid()+`#${ remoteHost}`, uui
 const message = {
     a: {
         deeplink: {
-            "#ref": {
+            "_ref": {
                 object: "my/deep/path/object1.txt",
                 label: "Object 1"
             }
         }
     },
     link: {
-        "#ref": {
+        "_ref": {
             object: "object2.txt",
             label: "Object 2"
         }
@@ -67,7 +69,7 @@ describe("Test exchange service", () => {
                 name: "exchange",
                 //mixins: [Store()],
                 // Sequence of mixins is important
-                mixins: [ExchangeService, StoreProvider, GroupsProvider, VaultProvider],
+                mixins: [ExchangeService, QueueProvider, StoreProvider, GroupsProvider, VaultProvider],
                 dependencies: ["v1.minio","v1.groups"],
                 settings: { 
                     db: {
@@ -78,7 +80,7 @@ describe("Test exchange service", () => {
                 }    
             });
             // Start additional services
-            [GroupsServiceMock, VaultServiceMock, StoreServiceMock, Collect].map(service => { return broker.createService(service); }); 
+            [QueueServiceMock, GroupsServiceMock, VaultServiceMock, StoreServiceMock, Collect].map(service => { return broker.createService(service); }); 
             await broker.start();
             expect(service).toBeDefined();
         });
@@ -211,6 +213,7 @@ describe("Test exchange service", () => {
             opts = { meta: { user: { id: userId , email: `${userId}@host.com` } , ownerId: otherGroupId, acl: { ownerId: otherGroupId } }};
             let params = {
                 receiver: remoteReceivers[0],
+                messageCode: 100,
                 message
             };
             return broker.call("exchange.sendMessage", params, opts).then(res => {
@@ -226,6 +229,7 @@ describe("Test exchange service", () => {
         it("it should emit notify event for a local address", () => {
             let params = {
                 receiver: localReceivers[0],
+                messageCode: 100,
                 message
             };
             return broker.call("exchange.sendMessage", params, opts).then(async res => {
@@ -234,24 +238,43 @@ describe("Test exchange service", () => {
                 expect(res.messageId).toBeDefined();
                 const stored = await get(groupId,`~exchange/${res.messageId}.message`);
                 expect(stored).toBeDefined();
-                expect(stored.message.a.deeplink["#ref"].id).toBeDefined();
-                expect(stored.message.a.deeplink["#ref"].label).toEqual(params.message.a.deeplink["#ref"].label);
-                expect(stored.message.a.deeplink["#ref"].object).not.toBeDefined();
-                expect(stored.appendix[stored.message.a.deeplink["#ref"].id].object).toEqual(params.message.a.deeplink["#ref"].object);
-                expect(events["ExchangeNotificationReceived"]).toBeDefined();
-                expect(events["ExchangeNotificationReceived"].length).toEqual(1);
-                // console.log(events["ExchangeNotificationReceived"][0]);
-                expect(events["ExchangeNotificationReceived"][0].payload.notification._encrypted).toBeDefined();
-                notifyEventLocal = events["ExchangeNotificationReceived"][0].payload;
+                expect(stored.message.a.deeplink["_ref"].id).toBeDefined();
+                expect(stored.message.a.deeplink["_ref"].label).toEqual(params.message.a.deeplink["_ref"].label);
+                expect(stored.message.a.deeplink["_ref"].object).not.toBeDefined();
+                expect(stored.appendix[stored.message.a.deeplink["_ref"].id].object).toEqual(params.message.a.deeplink["_ref"].object);
+                expect(queue["messages"]).toContainObject({ 
+                    topic: "messages",
+                    key: localReceivers[0],
+                    event: "message.notified",
+                    data: {
+                        groupId: localReceivers[0],
+                        notificationId: expect.any(String),
+                        notification: {
+                            _encrypted: expect.any(String)
+                        }
+                    }
+                });
             });
         });
 
         it("it should decrypt the notification event", async () => {
+            const notification = queue["messages"].find(event => event.event === "message.notified" && event.data.groupId === localReceivers[0]);
             let params = {
-                data: notifyEventLocal
+                data: notification.data
             };
             const event = await broker.call("v1.groups" + ".decryptValues", params, { meta: { acl: { ownerId:localReceivers[0] }, test: { service: "exchange" } } });
             // console.log(event);
+            expect(event).toBeDefined();
+            expect(event.notificationId).toBeDefined();
+            expect(event.notification).toBeDefined();
+            console.log(event.notification);
+            // expect(event.notification).toMatchObject({ 
+            //     fetchToken: expect.any("string"), 
+            //     messageId: expect.any("string"), 
+            //     sender: expect.any("string"), 
+            //     receiverId: expect.any("string"), 
+            //     messageCode: expect.any("string")
+            // });
             notifyEventLocal = event;
         });
 
@@ -263,9 +286,9 @@ describe("Test exchange service", () => {
             };
             const message = await broker.call("exchange.getMessage", params, opts);
             expect(message).toBeDefined();
-            expect(message.a.deeplink["#ref"].id).toBeDefined();
-            expect(message.a.deeplink["#ref"].label).toEqual(message.a.deeplink["#ref"].label);
-            expect(message.a.deeplink["#ref"].object).not.toBeDefined();
+            expect(message.a.deeplink["_ref"].id).toBeDefined();
+            expect(message.a.deeplink["_ref"].label).toEqual(message.a.deeplink["_ref"].label);
+            expect(message.a.deeplink["_ref"].object).not.toBeDefined();
             messageLocal = message;
         });
 
@@ -273,7 +296,7 @@ describe("Test exchange service", () => {
             let params = {
                 sender: notifyEventLocal.notification.sender,
                 messageId: notifyEventLocal.notification.messageId,
-                appendixId: messageLocal.a.deeplink["#ref"].id,
+                appendixId: messageLocal.a.deeplink["_ref"].id,
                 fetchToken: notifyEventLocal.notification.fetchToken,
                 path: "path/to/received/appendix"
             };
@@ -290,6 +313,7 @@ describe("Test exchange service", () => {
         it("it should call notify at remote server", () => {
             let params = {
                 receiver: remoteReceivers[0],
+                messageCode: 100,
                 message
             };
             let callParams;
@@ -301,17 +325,17 @@ describe("Test exchange service", () => {
                 expect(res.messageId).toBeDefined();
                 const stored = await get(groupId,`~exchange/${res.messageId}.message`);
                 expect(stored).toBeDefined();
-                expect(stored.message.a.deeplink["#ref"].id).toBeDefined();
-                expect(stored.message.a.deeplink["#ref"].label).toEqual(params.message.a.deeplink["#ref"].label);
-                expect(stored.message.a.deeplink["#ref"].object).not.toBeDefined();
-                expect(stored.appendix[stored.message.a.deeplink["#ref"].id].object).toEqual(params.message.a.deeplink["#ref"].object);
+                expect(stored.message.a.deeplink["_ref"].id).toBeDefined();
+                expect(stored.message.a.deeplink["_ref"].label).toEqual(params.message.a.deeplink["_ref"].label);
+                expect(stored.message.a.deeplink["_ref"].object).not.toBeDefined();
+                expect(stored.appendix[stored.message.a.deeplink["_ref"].id].object).toEqual(params.message.a.deeplink["_ref"].object);
                 expect(axios.post).toHaveBeenCalledWith(
                     `https://${remoteHost}/notify`,
                     expect.objectContaining({
                         sender: expect.any(String),
                         receiver: remoteReceivers[0],
                         messageId: expect.any(String),
-                        messageCode: 0,
+                        messageCode: 100,
                         fetchToken: expect.any(String)
                     }),
                   );
@@ -341,9 +365,9 @@ describe("Test exchange service", () => {
             };
             return broker.call("exchange.fetchMessage", params, opts).then(res => {
                 expect(res).toBeDefined();
-                expect(res.a.deeplink["#ref"].id).toBeDefined();
-                expect(res.a.deeplink["#ref"].label).toEqual(message.a.deeplink["#ref"].label);
-                expect(res.a.deeplink["#ref"].object).not.toBeDefined();
+                expect(res.a.deeplink["_ref"].id).toBeDefined();
+                expect(res.a.deeplink["_ref"].label).toEqual(message.a.deeplink["_ref"].label);
+                expect(res.a.deeplink["_ref"].object).not.toBeDefined();
             });
         });
 
@@ -355,9 +379,9 @@ describe("Test exchange service", () => {
             };
             return broker.call("exchange.getMessage", params, opts).then(res => {
                 expect(res).toBeDefined();
-                expect(res.a.deeplink["#ref"].id).toBeDefined();
-                expect(res.a.deeplink["#ref"].label).toEqual(message.a.deeplink["#ref"].label);
-                expect(res.a.deeplink["#ref"].object).not.toBeDefined();
+                expect(res.a.deeplink["_ref"].id).toBeDefined();
+                expect(res.a.deeplink["_ref"].label).toEqual(message.a.deeplink["_ref"].label);
+                expect(res.a.deeplink["_ref"].object).not.toBeDefined();
             });
         });
 
@@ -382,20 +406,29 @@ describe("Test exchange service", () => {
                         fetchToken: params.fetchToken
                     }),
                   );
-                expect(events["ExchangeNotificationReceived"]).toBeDefined();
-                expect(events["ExchangeNotificationReceived"].length).toEqual(1);
-                // console.log(events["ExchangeNotificationReceived"][0]);
-                expect(events["ExchangeNotificationReceived"][0].payload.notification._encrypted).toBeDefined();
+                expect(queue["messages"]).toContainObject({ 
+                    topic: "messages",
+                    key: groupId,
+                    event: "message.notified",
+                    data: {
+                        groupId: groupId,
+                        notificationId: expect.any(String),
+                        notification: {
+                            _encrypted: expect.any(String)
+                        }
+                    }
+                });
                 notifyEventRemote = {
                     groupId, 
                     notification: { 
                         fetchToken: params.fetchToken,
                         messageId: params.messageId, 
                         sender: params.sender, 
-                        receiverId: groupId
+                        receiverId: groupId,
+                        messageCode: params.messageCode
                     }
                 };
-              })
+            })
         });
 
         it("it should call fetch message at remote server", async () => {
@@ -462,6 +495,7 @@ describe("Test exchange service", () => {
         it("it should throw error - receiver not in white list", () => {
             let params = {
                 receiver: remoteReceivers[2],
+                messageCode: 100,
                 message
             };
             return broker.call("exchange.sendMessage", params, opts).then(res => {
@@ -537,14 +571,14 @@ describe("Test exchange service", () => {
                 message: {
                     a: {
                         deeplink: {
-                            "#ref": {
+                            "_ref": {
                                 object: "object1.txt",
                                 label: "Object 1"
                             }
                         }
                     },
                     link: {
-                        "#ref": {
+                        "_ref": {
                             object: "object2.txt",
                             label: "Object 2"
                         }

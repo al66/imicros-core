@@ -25,6 +25,7 @@ module.exports = {
     VaultProvider: require("./lib/provider/vault").VaultProvider,
     GroupsProvider: require("./lib/provider/groups").GroupsProvider,
     QueueProvider: require("./lib/provider/queue").QueueProvider,
+    ExchangeProvider: require("./lib/provider/exchange").ExchangeProvider,
     Serializer: require("./lib/provider/serializer").Serializer,
     // mixins
     GatewayMixin: require("./lib/mixins/gateway.mixin"),
