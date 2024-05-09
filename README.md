@@ -1,11 +1,11 @@
 # imicros-core
-![NpmLicense](https://img.shields.io/npm/l/imicros-minio.svg)
-![npm](https://img.shields.io/npm/v/imicros-minio.svg)
+![NpmLicense](https://img.shields.io/npm/l/imicros-core.svg)
+![npm](https://img.shields.io/npm/v/imicros-core.svg)
 
 Basic services for imicros-backend:
  *  authentification &amp; authorization services for imicros-backend
  *  management of user groups
- *  object store
+ *  object store for user groups
  *  execution of business rules based on DMNN
  *  execution of business processes defined in BPMN
  *  exchange service for sending messages between groups

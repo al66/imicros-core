@@ -107,6 +107,7 @@ describe("Test database connection", () => {
         let instanceIds = [uuid()];
         let subscriptionIds = [uuid(),uuid()];
         const finshedEvents = [];
+        let subscriptions = [];
 
         it("it should preserve a key", async () => {
             const result = await db.preserveUniqueKey({ 
@@ -322,6 +323,72 @@ describe("Test database connection", () => {
                 hash: "hashed value"
             };
             return db.removeSubscription(params).then(res => {
+                expect(res).toBeDefined();
+                expect(res).toEqual(true);
+            });
+        });
+
+        it("it should get list of subscriptions", () => {
+            let params = {
+                owner: owner[0], 
+                accessToken,
+                type: Constants.SUBSCRIPTION_TYPE_EVENT, 
+                hash: "hashed value"
+            };
+            return db.getSubscriptions(params).then(res => {
+                expect(res).toBeDefined();
+                expect(res.length).toEqual(1);
+                expect(res[0].subscriptionId).toEqual(subscriptionIds[0]);
+                expect(res[0].subscription.processId).toEqual(parsedData.process.id);
+                expect(res[0].subscription.versionId).toEqual(parsedData.version.id);
+            });
+        });
+
+        it("it should add multiple subscriptions", () => {
+            for (let i=0; i<10; i++) {
+                subscriptions.push({ 
+                    subscriptionId: uuid(), 
+                    processId: parsedData.process.id,
+                    versionId: parsedData.version.id,
+                    instanceId: uuid(),
+                    type: Constants.SUBSCRIPTION_TYPE_EVENT, 
+                    hash: "hashed value"
+                });
+            }
+            let params = {
+                owner: owner[0], 
+                accessToken,
+                subscriptions
+            };
+            return db.subscribe(params).then(res => {
+                expect(res).toBeDefined();
+                expect(res).toEqual(true);
+            });
+        });
+
+        it("it should get list of subscriptions", () => {
+            let params = {
+                owner: owner[0], 
+                accessToken,
+                type: Constants.SUBSCRIPTION_TYPE_EVENT, 
+                hash: "hashed value"
+            };
+            return db.getSubscriptions(params).then(res => {
+                expect(res).toBeDefined();
+                expect(res.length).toEqual(11); // 10 + 1 from previous test
+                expect(res[5].subscriptionId).toBeDefined();
+                expect(res[5].subscription.processId).toEqual(parsedData.process.id);
+                expect(res[5].subscription.versionId).toEqual(parsedData.version.id);
+                expect(res[5].subscription.instanceId).toEqual(expect.any(String));
+            });
+        });
+
+        it("it should unsubscribe again", () => {
+            let params = {
+                owner: owner[0], 
+                subscriptions
+            };
+            return db.unsubscribe(params).then(res => {
                 expect(res).toBeDefined();
                 expect(res).toEqual(true);
             });

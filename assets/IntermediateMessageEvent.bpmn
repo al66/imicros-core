@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:zeebe="http://camunda.org/schema/zeebe/1.0" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" xmlns:modeler="http://camunda.org/schema/modeler/1.0" id="Definitions_1wwakmy" targetNamespace="http://bpmn.io/schema/bpmn" exporter="Camunda Modeler" exporterVersion="5.20.0" modeler:executionPlatform="Camunda Cloud" modeler:executionPlatformVersion="8.4.0">
+  <bpmn:process id="Process_1y9d3t4" isExecutable="true">
+    <bpmn:startEvent id="CustomerMasterRequested" name="Customer master requested">
+      <bpmn:extensionElements>
+        <zeebe:ioMapping>
+          <zeebe:output source="=CustomerId" target="CustomerId" />
+        </zeebe:ioMapping>
+      </bpmn:extensionElements>
+      <bpmn:outgoing>Flow_1rlimr2</bpmn:outgoing>
+    </bpmn:startEvent>
+    <bpmn:sequenceFlow id="Flow_1rlimr2" sourceRef="CustomerMasterRequested" targetRef="Event_0tanixe" />
+    <bpmn:intermediateCatchEvent id="Event_0tanixe">
+      <bpmn:extensionElements>
+        <zeebe:ioMapping>
+          <zeebe:output source="=message" target="Customer" />
+        </zeebe:ioMapping>
+        <zeebe:properties>
+          <zeebe:property name="Correlation" value="=message.id" />
+        </zeebe:properties>
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_1rlimr2</bpmn:incoming>
+      <bpmn:outgoing>Flow_1frobgs</bpmn:outgoing>
+      <bpmn:messageEventDefinition id="MessageEventDefinition_0ysv72t" messageRef="Message_2o8rlun" />
+    </bpmn:intermediateCatchEvent>
+    <bpmn:endEvent id="CustomerMasterCreated">
+      <bpmn:extensionElements>
+        <zeebe:ioMapping>
+          <zeebe:output source="=Customer" target="Customer" />
+        </zeebe:ioMapping>
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_1frobgs</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:sequenceFlow id="Flow_1frobgs" sourceRef="Event_0tanixe" targetRef="CustomerMasterCreated" />
+  </bpmn:process>
+  <bpmn:message id="Message_2o8rlun" name="CustomerMasterCreated">
+    <bpmn:extensionElements>
+      <zeebe:subscription correlationKey="=CustomerId" />
+    </bpmn:extensionElements>
+  </bpmn:message>
+  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Process_1y9d3t4">
+      <bpmndi:BPMNShape id="_BPMNShape_StartEvent_2" bpmnElement="CustomerMasterRequested">
+        <dc:Bounds x="222" y="82" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="198" y="125" width="86" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Event_1pa9igq_di" bpmnElement="Event_0tanixe">
+        <dc:Bounds x="312" y="82" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Event_0woymcm_di" bpmnElement="CustomerMasterCreated">
+        <dc:Bounds x="402" y="82" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Flow_1rlimr2_di" bpmnElement="Flow_1rlimr2">
+        <di:waypoint x="258" y="100" />
+        <di:waypoint x="312" y="100" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_1frobgs_di" bpmnElement="Flow_1frobgs">
+        <di:waypoint x="348" y="100" />
+        <di:waypoint x="402" y="100" />
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>
