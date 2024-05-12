@@ -81,6 +81,7 @@ describe("Test flow service basics", () => {
     });
 
     describe("Test service", () => {
+        let instanceId;
 
         it("should return an empty process list", async () => {
             let result = await broker.call("flow.getProcessList", { }, opts );
@@ -203,6 +204,7 @@ describe("Test flow service basics", () => {
                     objectId: event.data.objectId
                 }
             });
+            instanceId = event.data.instanceId;
         });
 
         it("should process the event", async () => {
@@ -321,6 +323,17 @@ describe("Test flow service basics", () => {
             expect(result.payload).toEqual({
                 groupId: "0969cfa5-f658-44ba-a429-c2cd04bef375",
                 someStuff: true
+            });
+            expect(queue["instance"]).toContainObject({ 
+                topic: "instance",
+                key: groups[0].uid + instanceId,
+                event: "instance.completed",
+                data: {
+                    ownerId: groups[0].uid,
+                    processId: processes[0].processId,
+                    versionId: processes[0].versionId,
+                    instanceId: instanceId
+                }
             });
         });
 

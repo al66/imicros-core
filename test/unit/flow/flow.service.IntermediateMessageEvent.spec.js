@@ -23,6 +23,7 @@ const flowServiceId = process.env.SERVICE_ID_FLOW || uuid();
 const localSender = [uuid(), uuid(), uuid()];
 const message = {
     id: "1234",
+    correlationId: "JohnDoe",   
     name: {
         first: "John",
         last: "Doe"
@@ -197,7 +198,12 @@ describe("Test flow service basics", () => {
                 name: "Customer master requested",
                 eventId: "CustomerMasterRequested",
                 payload: { 
-                    CustomerId: "1234"
+                    CustomerId: "1234",
+                    CustomerName: {
+                        FirstName: "John",
+                        LastName: "Doe"
+                    },
+                    CustomerAddress: "Main Street, Anytown"
                  }
             };
             let result = await broker.call("flow.raiseEvent", params, opts );
@@ -367,6 +373,17 @@ describe("Test flow service basics", () => {
             expect(result.eventId).toEqual("CustomerMasterCreated");
             expect(result.payload).toEqual({
                 Customer: message,
+            });
+            expect(queue["instance"]).toContainObject({ 
+                topic: "instance",
+                key: groups[0].uid + instanceId,
+                event: "instance.completed",
+                data: {
+                    ownerId: groups[0].uid,
+                    processId: processes[0].processId,
+                    versionId: processes[0].versionId,
+                    instanceId: instanceId
+                }
             });
         });
 

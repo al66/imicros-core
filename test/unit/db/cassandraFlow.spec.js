@@ -12,6 +12,7 @@ const { GroupsServiceMock } = require("../../mocks/groups");
 const { VaultServiceMock } = require("../../mocks/vault");
 const fs = require("fs");
 const exp = require("constants");
+const instance = require("../../../lib/classes/flow/machines/instance");
 
 const settings = {
     db: { 
@@ -24,11 +25,12 @@ const settings = {
 describe("Test database connection", () => {
     let broker, db, serviceId = uuid(), accessToken, xmlData, parsedData, userId = uuid(), owner = [uuid(),uuid()];
     let processIds = [uuid(),uuid()];
-    let timerDay, timerTime;
+    let timerDate, timerDay, timerTime;
 
     beforeAll(() => {
         // time = new Date(Date.now())
         const now = new Date(Date.now());
+        timerDate = now;
         timerDay = now.toISOString().substring(0,10);
         timerTime = now.toTimeString().substring(0,8);
     })
@@ -42,7 +44,7 @@ describe("Test database connection", () => {
 
     describe("Test database initialization", () => {
 
-        it("it should start the broker", async () => {
+        it("should start the broker", async () => {
             broker = new ServiceBroker({
                 // middlewares:  [AclMiddleware({ service: "acl" })],
                 logger: console,
@@ -53,7 +55,7 @@ describe("Test database connection", () => {
             expect(broker).toBeDefined();
         });
 
-        it("it should initialize the connector and connect to database", async () => {
+        it("should initialize the connector and connect to database", async () => {
             const vault = new VaultServiceAccess({ 
                 broker: broker,
                 logger: broker.logger,
@@ -79,7 +81,7 @@ describe("Test database connection", () => {
     });
 
     describe("Test parser class", () => {
-        it("it should parse the process", async () => {
+        it("should parse the process", async () => {
             const parser = new Parser({ broker });
             expect(parser).toBeDefined();
             expect(parser instanceof Parser).toEqual(true);
@@ -109,7 +111,7 @@ describe("Test database connection", () => {
         const finshedEvents = [];
         let subscriptions = [];
 
-        it("it should preserve a key", async () => {
+        it("should preserve a key", async () => {
             const result = await db.preserveUniqueKey({ 
                 key: parsedData.process.id,
                 uid: processIds[0]
@@ -117,14 +119,14 @@ describe("Test database connection", () => {
             expect(result).toEqual(processIds[0]);
         })
 
-        it("it should read the key again", async () => {
+        it("should read the key again", async () => {
             const result = await db.getIdByUniqueKey({ 
                 key: parsedData.process.id
             });
             expect(result).toEqual(processIds[0]);
         })
 
-        it("it should fail to preserve the key again", async () => {
+        it("should fail to preserve the key again", async () => {
             const uid2 = uuid();
             const result = await db.preserveUniqueKey({ 
                 key: parsedData.process.id,
@@ -133,7 +135,7 @@ describe("Test database connection", () => {
             expect(result).toEqual(processIds[0]);
         })
 
-        it("it should preserve the same key for multiple requests", async () => {
+        it("should preserve the same key for multiple requests", async () => {
             const timestamp = Date.now();
             let requests = [];
             for (let i=0;i< 100; i++) {
@@ -150,7 +152,7 @@ describe("Test database connection", () => {
             }
         })
 
-        it("it should deploy a process", () => {
+        it("should deploy a process", () => {
             let params = {
                 owner: owner[0], 
                 accessToken, 
@@ -174,7 +176,7 @@ describe("Test database connection", () => {
             
         });
 
-        it("it should retrieve the process again", () => {
+        it("should retrieve the process again", () => {
             let params = {
                 owner: owner[0], 
                 accessToken, 
@@ -188,7 +190,7 @@ describe("Test database connection", () => {
             
         });
 
-        it("it should retrieve the xml of the process", () => {
+        it("should retrieve the xml of the process", () => {
             let params = {
                 owner: owner[0], 
                 accessToken, 
@@ -203,7 +205,7 @@ describe("Test database connection", () => {
             
         });
 
-        it("it should retrieve the process list", () => {
+        it("should retrieve the process list", () => {
             let params = {
                 owner: owner[0], 
                 accessToken,
@@ -220,7 +222,7 @@ describe("Test database connection", () => {
             
         });
 
-        it("it should retrieve the process list with a given process Id", () => {
+        it("should retrieve the process list with a given process Id", () => {
             let params = {
                 owner: owner[0], 
                 accessToken,
@@ -238,7 +240,7 @@ describe("Test database connection", () => {
             
         });
 
-        it("it should store an object", () => {
+        it("should store an object", () => {
             let params = {
                 owner: owner[0], 
                 accessToken, 
@@ -252,7 +254,7 @@ describe("Test database connection", () => {
             
         });
 
-        it("it should retrieve an object again", () => {
+        it("should retrieve an object again", () => {
             let params = {
                 owner: owner[0], 
                 accessToken, 
@@ -265,7 +267,7 @@ describe("Test database connection", () => {
             
         });
 
-        it("it should add a subscription", () => {
+        it("should add a subscription", () => {
             let params = {
                 owner: owner[0], 
                 accessToken,
@@ -281,7 +283,7 @@ describe("Test database connection", () => {
             });
         });
 
-        it("it should add a second subscription from instance", () => {
+        it("should add a second subscription from instance", () => {
             let params = {
                 owner: owner[0], 
                 accessToken,
@@ -298,7 +300,7 @@ describe("Test database connection", () => {
             });
         });
 
-        it("it should get list of subscriptions", () => {
+        it("should get list of subscriptions", () => {
             let params = {
                 owner: owner[0], 
                 accessToken,
@@ -314,7 +316,7 @@ describe("Test database connection", () => {
             });
         });
 
-        it("it should remove a subscription", () => {
+        it("should remove a subscription", () => {
             let params = {
                 owner: owner[0], 
                 accessToken,
@@ -328,7 +330,7 @@ describe("Test database connection", () => {
             });
         });
 
-        it("it should get list of subscriptions", () => {
+        it("should get list of subscriptions", () => {
             let params = {
                 owner: owner[0], 
                 accessToken,
@@ -344,7 +346,7 @@ describe("Test database connection", () => {
             });
         });
 
-        it("it should add multiple subscriptions", () => {
+        it("should add multiple subscriptions", () => {
             for (let i=0; i<10; i++) {
                 subscriptions.push({ 
                     subscriptionId: uuid(), 
@@ -366,7 +368,7 @@ describe("Test database connection", () => {
             });
         });
 
-        it("it should get list of subscriptions", () => {
+        it("should get list of subscriptions", () => {
             let params = {
                 owner: owner[0], 
                 accessToken,
@@ -383,7 +385,7 @@ describe("Test database connection", () => {
             });
         });
 
-        it("it should unsubscribe again", () => {
+        it("should unsubscribe again", () => {
             let params = {
                 owner: owner[0], 
                 subscriptions
@@ -394,7 +396,7 @@ describe("Test database connection", () => {
             });
         });
 
-        it("it should get list of subscriptions", () => {
+        it("should get list of subscriptions", () => {
             let params = {
                 owner: owner[0], 
                 accessToken,
@@ -410,7 +412,7 @@ describe("Test database connection", () => {
             });
         });
 
-        it("it should activate a version", () => {
+        it("should activate a version", () => {
             let params = {
                 owner: owner[0], 
                 accessToken, 
@@ -428,7 +430,7 @@ describe("Test database connection", () => {
             
         });
 
-        it("it should retrieve the active version of a given process Id", () => {
+        it("should retrieve the active version of a given process Id", () => {
             let params = {
                 owner: owner[0], 
                 accessToken,
@@ -444,7 +446,7 @@ describe("Test database connection", () => {
             
         });
 
-        it("it should fail to add an event for a non-existing version", async () => {
+        it("should fail to add an event for a non-existing version", async () => {
             let params = { 
                 owner: owner[0], 
                 accessToken,
@@ -458,7 +460,7 @@ describe("Test database connection", () => {
             expect(result).toEqual(false);
         });
 
-        it("it should add an event", async () => {
+        it("should add an event", async () => {
             let params = { 
                 owner: owner[0], 
                 accessToken,
@@ -472,7 +474,7 @@ describe("Test database connection", () => {
             expect(result).toEqual(true);
         });
 
-        it("it should add a second event", async () => {
+        it("should add a second event", async () => {
             let params = { 
                 owner: owner[0], 
                 accessToken,
@@ -486,7 +488,7 @@ describe("Test database connection", () => {
             expect(result).toEqual(true);
         });
 
-        it("it should read all events", async () => {
+        it("should read all events", async () => {
             const result = await db.getApp({ 
                 owner: owner[0], 
                 accessToken,
@@ -498,7 +500,7 @@ describe("Test database connection", () => {
             expect(result.events[1]).toEqual(expect.objectContaining({ type: "second" }));
         });
 
-        it("it should save a snapshot", async () => {
+        it("should save a snapshot", async () => {
             const result = await db.saveAppSnapshot({ 
                 owner: owner[0],
                 accessToken,
@@ -513,7 +515,7 @@ describe("Test database connection", () => {
         /* not working w/o the leightweight transaction
            but ist should not be called anyway as we ensure the sequence by using the 
            instance key in the KAFKA partition
-        it("it should fail to save a snapshot for a previous version", async () => {
+        it("should fail to save a snapshot for a previous version", async () => {
             const result = await db.saveAppSnapshot({ 
                 owner: owner[0],
                 accessToken,
@@ -526,7 +528,7 @@ describe("Test database connection", () => {
         });
         */
 
-        it("it should return all events", async () => {
+        it("should return all events", async () => {
             const result = await db.getApp({ 
                 owner: owner[0], 
                 accessToken,
@@ -538,7 +540,7 @@ describe("Test database connection", () => {
             expect(result.events[1]).toEqual(expect.objectContaining({ type: "second" }));
         });
 
-        it("it should return the snapshot and the last event", async () => {
+        it("should return the snapshot and the last event", async () => {
             const result = await db.getApp({ 
                 owner: owner[0], 
                 accessToken,
@@ -552,7 +554,7 @@ describe("Test database connection", () => {
             expect(result.events[0]).toEqual(expect.objectContaining({ type: "second" }));
         });
 
-        it("it should add a third event", async () => {
+        it("should add a third event", async () => {
             let params = { 
                 owner: owner[0], 
                 accessToken,
@@ -566,7 +568,7 @@ describe("Test database connection", () => {
             expect(result).toEqual(true);
         });
 
-        it("it should return the snapshot and the last two events", async () => {
+        it("should return the snapshot and the last two events", async () => {
             const result = await db.getApp({ 
                 owner: owner[0], 
                 accessToken,
@@ -582,7 +584,7 @@ describe("Test database connection", () => {
             timeuuid = result.events[1].$_timeuuid;
         });
 
-        it("it should save a snapshot for the last version", async () => {
+        it("should save a snapshot for the last version", async () => {
             const result = await db.saveAppSnapshot({ 
                 owner: owner[0],
                 accessToken,
@@ -594,7 +596,7 @@ describe("Test database connection", () => {
             expect(result).toEqual(true);
         });
 
-        it("it should return the last snapshot w/o events to be applied", async () => {
+        it("should return the last snapshot w/o events to be applied", async () => {
             const result = await db.getApp({ 
                 owner: owner[0], 
                 accessToken,
@@ -607,7 +609,7 @@ describe("Test database connection", () => {
             expect(result.events.length).toEqual(0);
         });
 
-        it("it should return all events of the last version", async () => {
+        it("should return all events of the last version", async () => {
             const result = await db.getApp({ 
                 owner: owner[0], 
                 accessToken,
@@ -621,26 +623,74 @@ describe("Test database connection", () => {
             finshedEvents.push(...result.events);
         });
 
-        it("it sould add a timer", async () => {
+        it("should add a timer", async () => {
             const opts = { acl: { accessToken } };
             const timerEncrypted = await broker.call("v1.groups.encrypt", { data: { timer: "timer" } }, opts);
-            const subscriptionEncrypted = await broker.call("v1.groups.encrypt", { data: { subscription: "subscription" } }, opts);
             let params = {
                 day: timerDay,
                 time: timerTime,
                 partition: 0,
                 id: uuid(),
                 owner: owner[0], 
-                timer: timerEncrypted,
-                start: true,
-                subscription: subscriptionEncrypted
+                processId: parsedData.process.id,
+                versionId: parsedData.version.id,
+                instanceId: null,    
+                timer: timerEncrypted
             };
             const res = await db.addTimer(params)
             expect(res).toBeDefined();
             expect(res).toEqual(true);
         });
 
-        it("it should retrieve the active version list for the owner", () => {
+        it("should retrieve the list of timers", async () => {
+            const opts = { meta: { acl: { accessToken }, accessToken }};
+            let params = {
+                day: timerDay.toString(),
+                time: timerTime.toString(),
+                partition: 0
+            };
+            const res = await db.getTimerList(params)
+            expect(res).toBeDefined();
+            expect(res.length).toEqual(1);
+            expect(res[0]).toEqual({ 
+                day: timerDay,
+                time: timerTime,
+                partition: 0,
+                id: expect.any(String),
+                owner: owner[0],
+                processId: parsedData.process.id,
+                versionId: parsedData.version.id,
+                instanceId: null,
+                timer: expect.any(String)
+            });
+            const timer = await broker.call("v1.groups.decrypt", { encrypted: res[0].timer }, opts);
+            expect(timer).toEqual({ timer: "timer"});
+        });
+
+        it("should retrieve the owner list of timers", async () => {
+            let params = {
+                owner: owner[0],
+                accessToken,
+                from: timerDate,
+                to: timerDate
+            };
+            const res = await db.getOwnerTimerList(params)
+            expect(res).toBeDefined();
+            expect(res.length).toEqual(1);
+            expect(res[0]).toEqual({ 
+                day: timerDay,
+                time: timerTime,
+                partition: 0,
+                id: expect.any(String),
+                owner: owner[0],
+                processId: parsedData.process.id,
+                versionId: parsedData.version.id,
+                instanceId: null,
+                timer: { timer: "timer"}
+            });
+        });
+
+        it("should retrieve the active version list for the owner", () => {
             let params = {
                 owner: owner[0], 
                 accessToken,
@@ -659,7 +709,7 @@ describe("Test database connection", () => {
             
         });
 
-        it("it should finish an instance", async () => {
+        it("should finish an instance", async () => {
             let params = {
                 owner: owner[0], 
                 accessToken,
@@ -676,7 +726,7 @@ describe("Test database connection", () => {
             expect(res).toEqual(true);
         });
 
-        it("it should retrieve the finished instance", async () => {
+        it("should retrieve the finished instance", async () => {
             let params = {
                 owner: owner[0], 
                 accessToken,
@@ -695,7 +745,7 @@ describe("Test database connection", () => {
             expect(res.events).toEqual(finshedEvents);
         });
 
-        it("it should retrieve the active version list w/o the finished instance", () => {
+        it("should retrieve the active version list w/o the finished instance", () => {
             let params = {
                 owner: owner[0], 
                 accessToken,
@@ -711,7 +761,7 @@ describe("Test database connection", () => {
             
         });
 
-        it("it should retrieve the list of finished instances", async () => {
+        it("should retrieve the list of finished instances", async () => {
             let params = {
                 owner: owner[0], 
                 accessToken,
@@ -727,7 +777,7 @@ describe("Test database connection", () => {
             expect(res[0].completed).toEqual(true);
         });
 
-        it("it should deactivate a version", () => {
+        it("should deactivate a version", () => {
             let params = {
                 owner: owner[0], 
                 processId: parsedData.process.id
@@ -739,7 +789,7 @@ describe("Test database connection", () => {
             
         });
 
-        it("it should retrieve no active version for the given process Id", () => {
+        it("should retrieve no active version for the given process Id", () => {
             let params = {
                 owner: owner[0], 
                 accessToken,
@@ -752,26 +802,6 @@ describe("Test database connection", () => {
                 expect(res[0].versionId).toEqual(null);
             });
             
-        });
-
-        it("it should retrieve the list of timers", async () => {
-            await new Promise(resolve => setTimeout(resolve, 10));
-            const opts = { meta: { acl: { accessToken }, accessToken }};
-            let params = {
-                day: timerDay.toString(),
-                time: timerTime.toString(),
-                partition: 0
-            };
-            const res = await db.getTimerList(params)
-            expect(res).toBeDefined();
-            expect(res.length).toEqual(1);
-            expect(res[0].day).toEqual(timerDay);
-            expect(res[0].time).toEqual(timerTime);
-            expect(res[0].start).toEqual(true);
-            const timer = await broker.call("v1.groups.decrypt", { encrypted: res[0].timer }, opts);
-            expect(timer).toEqual({ timer: "timer"});
-            const subscription = await broker.call("v1.groups.decrypt", { encrypted: res[0].subscription }, opts);
-            expect(subscription).toEqual({ subscription: "subscription"});
         });
 
     });

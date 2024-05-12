@@ -79,14 +79,13 @@ describe("Test flow: process class ", () => {
             expect(result.timers[0].timerId).toEqual(expect.any(String));
             expect(result.timers[0].processId).toEqual(processData[1].process.id);
             expect(result.timers[0].versionId).toEqual(processData[1].version.id);
-            expect(result.timers[0].timer.type).toEqual(Constants.TIMER_CYCLE);
-            expect(result.timers[0].timer.expression).toEqual("R/2024-03-23T13:00:00Z/P7D");
-            expect(result.timers[0].timer.current).toEqual(new Date("2024-03-23T13:00:00Z"));
-            expect(result.timers[0].timer.cycleCount).toEqual(0);
+            expect(result.timers[0].timer.eventId).toBeDefined();
+            expect(result.timers[0].timer.payload.timer.type).toEqual(Constants.TIMER_CYCLE);
+            expect(result.timers[0].timer.payload.timer.expression).toEqual("R/2024-03-23T13:00:00Z/P7D");
+            expect(result.timers[0].timer.payload.timer.current).toEqual(new Date("2024-03-23T13:00:00Z"));
+            expect(result.timers[0].timer.payload.timer.cycleCount).toEqual(0);
             expect(result.timers[0].day).toEqual("2024-03-23");
             expect(result.timers[0].time).toEqual("13:00:00");
-            expect(result.timers[0].partition).toEqual(0);
-
         });
 
     });

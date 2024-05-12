@@ -201,6 +201,7 @@ describe("Test flow service basics", () => {
     });
 
     describe("Test process execution", () => {
+        let instanceId;
 
         it("it should send the message and emit notify event", () => {
             const opts = { meta: { user: { id: userId , email: `${userId}@host.com` } , ownerId: localSender[0], acl: { ownerId: localSender[0] } }};
@@ -287,6 +288,7 @@ describe("Test flow service basics", () => {
                     version: 1
                 }
             });
+            instanceId = event.data.instanceId;
         });
 
         it("should continue the instance", async () => {
@@ -366,6 +368,17 @@ describe("Test flow service basics", () => {
             expect(result.eventId).toEqual("OrderSaved");
             expect(result.payload).toEqual({
                 path: "receivedMassage/"+messageId+".xml",
+            });
+            expect(queue["instance"]).toContainObject({ 
+                topic: "instance",
+                key: groups[0].uid + instanceId,
+                event: "instance.completed",
+                data: {
+                    ownerId: groups[0].uid,
+                    processId: processes[0].processId,
+                    versionId: processes[0].versionId,
+                    instanceId: instanceId
+                }
             });
         });
 
