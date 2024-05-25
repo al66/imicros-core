@@ -1,0 +1,11 @@
+participant agent
+participant flow
+participant queue events
+agent -> flow: raise event
+note over flow: save event object (encrypted)
+flow -> queue events: event.raised
+queue events -> flow: assignEvent
+flow -> queue events: instance.requested
+queue events -> flow: createInstance
+flow -> queue instance: event.raised
+queue instance -> flow: processEvent

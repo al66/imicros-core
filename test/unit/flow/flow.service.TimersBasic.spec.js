@@ -14,6 +14,7 @@ const { StoreServiceMock, put } = require("../../mocks/store");
 const { groups } = require("../../helper/shared");
 const fs = require("fs");
 const { v4: uuid } = require("uuid");
+const instance = require("../../../lib/classes/flow/machines/instance");
 const flowServiceId = process.env.SERVICE_ID_FLOW || uuid();
 let startTime = {
     timer: "R/2024-03-23T13:00:00Z/P7D",
@@ -25,7 +26,7 @@ startTime = {
     value: startTime.date.getTime(),
     ...startTime
 };
-console.log("Start time",startTime);
+//console.log("Start time",startTime);
 
 
 // called services
@@ -99,6 +100,9 @@ describe("Test flow: process TimersBasic ", () => {
         describe("Test flow service", () => {
             const time = Date.now();
             let instanceId;
+            let intermediateTimer;
+            let objectId;
+            let lastEvent;
 
             it("should deploy a process", async () => {
                 let objectName = "path/to/example/process.bpmn";
@@ -261,7 +265,20 @@ describe("Test flow: process TimersBasic ", () => {
                         jobId: expect.any(String)
                     }
                 });
-                // TODO: Expect new timer event for next cycle of start timer
+            });
+
+            it("should retrieve the new scheduled start timer", async () => {
+                let expectedDate = new Date(startTime.value + 7 * 24 * 60 * 60 * 1000);
+                let result = await broker.call("flow.getTimerList",{ from: expectedDate, to: expectedDate }, opts);
+                expect(result).toBeDefined();
+                expect(result.length).toEqual(1);
+                expect(result[0].processId).toEqual(processes[0].processId);
+                expect(result[0].versionId).toEqual(processes[0].versionId);
+                expect(result[0].instanceId).toEqual(null);
+                expect(result[0].timer.payload.timer.type).toEqual("Cycle");
+                expect(result[0].timer.payload.timer.expression).toEqual("R/2024-03-23T13:00:00Z/P7D");
+                expect(result[0].timer.payload.timer.current).toBeDefined();
+                expect(result[0].timer.payload.timer.cycleCount).toEqual(1);
             });
 
             it("should process the job", async () => {
@@ -302,14 +319,168 @@ describe("Test flow: process TimersBasic ", () => {
                 const event = queue["instance"].find(event => event.event === "instance.processed" && event.data.ownerId === groups[0].uid && event.data.version === 2);
                 let result = await broker.call("flow.continueInstance", event.data, {} );
                 expect(result).toEqual(true);
-                // TODO: Expect new timer event for intermediate timer
-                console.log(queue["instance"]);
+                //console.log(queue["instance"]);
             });
 
-            // TODO add tests for intermediate timer
+            it("should retrieve the new scheduled intermediate timer", async () => {
+                let expectedDate = new Date(Date.now() + 2 * 24 * 60 * 60 * 1000);
+                let result = await broker.call("flow.getTimerList",{ from: expectedDate, to: expectedDate }, opts);
+                result = result.filter(timer => timer.instanceId === instanceId);
+                expect(result).toBeDefined();
+                expect(result.length).toEqual(1);
+                expect(result[0].processId).toEqual(processes[0].processId);
+                expect(result[0].versionId).toEqual(processes[0].versionId);
+                expect(result[0].instanceId).toEqual(instanceId);
+                expect(result[0].timer.payload.timer.type).toEqual("Duration");
+                expect(result[0].timer.payload.timer.expression).toEqual("P2D");
+                intermediateTimer = result[0];
+            });
+
+            it("should process clock tick and emit event per timer partition", async () => {
+                intermediateTimer.value = new Date(intermediateTimer.day + "T" + intermediateTimer.time + "Z").getTime();
+                let result = await broker.call("flow.processTick", { event: "tick", time: intermediateTimer.value });
+                expect(result).toEqual(true);
+                expect(queue["timer"]).toContainObject({ 
+                    topic: "timer",
+                    key: "0",
+                    event: "tick",
+                    data: {
+                        day: intermediateTimer.day,
+                        time: intermediateTimer.time,
+                        value: intermediateTimer.value,
+                        partition: 0
+                    }
+                });
+            });
+
+            it("should process time event per partition", async () => {
+                const event = queue["timer"].find(event => event.event === "tick" && event.data.value === intermediateTimer.value);
+                let result = await broker.call("flow.processTimeEvent", event.data, {} );
+                expect(result).toEqual(true);
+                expect(queue["timer"]).toContainObject({ 
+                    topic: "timer",
+                    key: groups[0].uid,
+                    event: "timer.reached",
+                    data: {
+                        ownerId: groups[0].uid, 
+                        processId: processes[0].processId,
+                        versionId: processes[0].versionId,
+                        instanceId: instanceId,
+                        timeReached: {
+                            day: intermediateTimer.day,
+                            time: intermediateTimer.time,
+                            value: intermediateTimer.value,
+                        },
+                        timerId: intermediateTimer.id,
+                        timer: expect.any(String)
+                    }
+                });
+            });
+
+            it("should assign the timer event", async () => {
+                const event = queue["timer"].find(event => event.event === "timer.reached" && event.data.ownerId === groups[0].uid && event.data.timerId === intermediateTimer.id );
+                let result = await broker.call("flow.assignTimerEvent", event.data, {} );
+                expect(result).toEqual(true);
+                expect(queue["instance"]).toContainObject({ 
+                    topic: "instance",
+                    key: groups[0].uid,
+                    event: "event.raised",
+                    data: {
+                        ownerId: groups[0].uid,
+                        processId: processes[0].processId,
+                        versionId: processes[0].versionId,
+                        instanceId: instanceId,
+                        objectId: intermediateTimer.id
+                    }
+                });
+            });
+
+            it("should process the event", async () => {
+                const event = queue["instance"].find(event => event.event === "event.raised" && event.data.ownerId === groups[0].uid && event.data.objectId === intermediateTimer.id);
+                let result = await broker.call("flow.processEvent", event.data, {} );
+                expect(result).toEqual(true);
+                expect(queue["instance"]).toContainObject({ 
+                    topic: "instance",
+                    key: groups[0].uid + event.data.instanceId,
+                    event: "instance.processed",
+                    data: {
+                        ownerId: groups[0].uid,
+                        instanceId: event.data.instanceId,
+                        version: 3
+                    }
+                });
+            });
 
             // TODO add tests for second task and end event
 
+            it("should continue the instance", async () => {
+                const event = queue["instance"].find(event => event.event === "instance.processed" && event.data.ownerId === groups[0].uid && event.data.version === 3);
+                let result = await broker.call("flow.continueInstance", event.data, {} );
+                expect(result).toEqual(true);
+                lastEvent = queue["instance"][queue["instance"].length -1];
+                expect(lastEvent).toEqual({ 
+                    topic: "instance",
+                    key: groups[0].uid + event.data.instanceId,
+                    event: "job.created",
+                    data: {
+                        ownerId: groups[0].uid,
+                        instanceId: event.data.instanceId,
+                        jobId: expect.any(String)
+                    }
+                });
+            });
+
+            it("should process the job", async () => {
+                const event = lastEvent;
+                let result = await broker.call("flow.processJob", event.data, {} );
+                expect(result).toEqual(true);
+                expect(queue["instance"]).toContainObject({
+                    topic: "instance",
+                    key: groups[0].uid + event.data.instanceId,
+                    event: "job.completed",
+                    data: {
+                        ownerId: groups[0].uid,
+                        jobId: event.data.jobId,
+                        instanceId: event.data.instanceId,
+                        resultId: expect.any(String)
+                    }
+                });
+            });
+
+            it("should process job commit", async () => {
+                const event = lastEvent;
+                const job = queue["instance"].find(event => event.event === "job.completed" && event.data.jobId === lastEvent.data.jobId);
+                let result = await broker.call("flow.processCommitJob", job.data, {} );
+                expect(result).toEqual(true);
+                expect(queue["instance"]).toContainObject({ 
+                    topic: "instance",
+                    key: groups[0].uid + event.data.instanceId,
+                    event: "instance.processed",
+                    data: {
+                        ownerId: groups[0].uid,
+                        instanceId: event.data.instanceId,
+                        version: 4
+                    }
+                });
+            });
+    
+            it("should continue the instance", async () => {
+                const event = queue["instance"].find(event => event.event === "instance.processed" && event.data.ownerId === groups[0].uid && event.data.version === 4);
+                let result = await broker.call("flow.continueInstance", event.data, {} );
+                expect(result).toEqual(true);
+                //console.log(queue["instance"]);
+                expect(queue["instance"]).toContainObject({ 
+                    topic: "instance",
+                    key: groups[0].uid + event.data.instanceId,
+                    event: "instance.completed",
+                    data: {
+                        ownerId: groups[0].uid,
+                        processId: processes[0].processId,
+                        versionId: processes[0].versionId,
+                        instanceId: event.data.instanceId
+                    }
+                });
+            });   
         });
 
         describe("Test stop broker", () => {

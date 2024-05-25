@@ -1,0 +1,16 @@
+// {type:sequence}
+// {generate:true}
+
+[client]raiseEvent>[flow]
+[flow]-[note:save object]
+[flow]event.raised.>[q:events]
+[q:events]assignEvent>[flow]
+[flow]-[note:get subscriptions and assign event to process/instances]
+[flow]isntance.requested.>[q:events]
+[q:events]createInstance>[flow]
+[flow]-[note:create instance and emit event again assigned to this instance]
+[flow]event.raised.>[q:instance]
+[q:instance]processEvent>[flow]
+
+
+

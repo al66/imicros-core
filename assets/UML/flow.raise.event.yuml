@@ -1,0 +1,44 @@
+// {type:sequence}
+// {generate:true}
+
+[client]
+[flow]
+[flow.worker.events]
+[topic events]
+[flow.worker.instance]
+[client]raiseEvent>[flow]
+[flow]-[note:save event object and add event.raised to queue]
+[flow]event.raised.>[topic events]
+[topic events]event.raised.>[flow.worker.events]
+[flow.worker.events]assignEvent>[flow]
+[flow]-[note:read event object, get subscriptions and assign event to process/instances]
+[flow]instance.requested.>[topic events]
+[topic events]instance.requested.>[flow.worker.events]
+[flow.worker.events]createInstance>[flow]
+[flow]-[note:create instance and emit event again assigned to this instance]
+[flow]instance.created.>[topic instance]
+[flow]event.raised.>[topic instance]
+[topic instance]-[note:....further processing of instance.created not in scope...]
+[topic instance]event.raised.>[flow.worker.instance]
+[flow.worker.instance]processEvent>[flow]
+[flow]-[note:process event and persist instance]
+[flow]instance.processed.>[topic instance]
+[topic instance]instance.processed.>[flow.worker.instance]
+[flow.worker.instance]continueInstance>[flow]
+[flow]-[note:check if instance is completed]
+[flow]-[note:get new subscriptions for intermediate catching events and save them on db]
+[flow]-[note:get new jobs, save the job objects and add them to queue]
+[flow]-[note:get thrown events, save event objects and add them as event.raised to queue]
+[flow]-[note:get new timer and save them on db]
+[flow]job.created.>[topic instance]
+[flow]event.raised.>[topic instance]
+[topic instance]-[note:....further processing of raised events, commited jobs, reached timers and received messages...]
+[topic instance]continueInstance>[flow]
+[flow]-[note:check if instance is completed]
+[flow]instance.completed.>[topic instance]
+[topic instance]-[note:....further processing of instance.completed not in scope...]
+
+
+
+
+
