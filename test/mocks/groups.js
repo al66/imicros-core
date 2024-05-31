@@ -63,6 +63,20 @@ const keys = {
 const accessTokenStore = {};
 const mockSecret = uuid();
 
+function getTestAccessToken(groupId) {
+      // get or build dummy token
+      if(!accessTokenStore[groupId]) {
+         accessTokenStore[groupId] = jwt.sign({ 
+            type: Constants.TOKEN_TYPE_ACCESS_INTERNAL, 
+            nodeID: "AnyNodeID",
+            groupId: groupId, 
+            adminGroup: false
+         },mockSecret);    
+      }
+      return accessTokenStore[groupId];
+}
+
+
 const GroupsServiceMock = {
     name: "groups",
     version: 1,
@@ -294,5 +308,6 @@ const GroupsServiceMock = {
 }
 
 module.exports = {
-    GroupsServiceMock
+    GroupsServiceMock,
+    getTestAccessToken
 }

@@ -3,6 +3,7 @@
  */
 "use strict";
 
+
 module.exports = {
     // services
     UsersService: require("./lib/services/users"),
@@ -20,12 +21,14 @@ module.exports = {
     SmtpService: require("./lib/services/smtp"),
     MapService: require("./lib/services/map"),
     ExchangeService: require("./lib/services/exchange"),
+    BusinessRulesService: require("./lib/services/businessRules"),
     // provider
     StoreProvider: require("./lib/provider/store").StoreProvider,
     VaultProvider: require("./lib/provider/vault").VaultProvider,
     GroupsProvider: require("./lib/provider/groups").GroupsProvider,
-    QueueProvider: require("./lib/provider/queue").QueueProvider,
+    QueueProvider: require("./lib/provider/queue").QueueProvider,    
     ExchangeProvider: require("./lib/provider/exchange").ExchangeProvider,
+    BusinessRulesProvider: require("./lib/provider/businessRules").BusinessRulesProvider,
     Serializer: require("./lib/provider/serializer").Serializer,
     // mixins
     GatewayMixin: require("./lib/mixins/gateway.mixin"),
