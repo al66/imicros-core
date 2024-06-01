@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:zeebe="http://camunda.org/schema/zeebe/1.0" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" xmlns:modeler="http://camunda.org/schema/modeler/1.0" id="Definitions_1ihtpyc" targetNamespace="http://bpmn.io/schema/bpmn" exporter="Camunda Modeler" exporterVersion="5.20.0" modeler:executionPlatform="Camunda Cloud" modeler:executionPlatformVersion="8.4.0">
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:zeebe="http://camunda.org/schema/zeebe/1.0" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" xmlns:modeler="http://camunda.org/schema/modeler/1.0" id="Definitions_1ihtpyc" targetNamespace="http://bpmn.io/schema/bpmn" exporter="Camunda Modeler" exporterVersion="5.23.0" modeler:executionPlatform="Camunda Cloud" modeler:executionPlatformVersion="8.4.0">
   <bpmn:error id="Error_0pehz5e" name="SendMailError" errorCode="SendMailError001" />
   <bpmn:collaboration id="UserConfirmationRequestedCollaboration">
     <bpmn:participant id="Participant_193od1y" name="Admin" processRef="Process_0gyfsp4" />
@@ -30,7 +30,7 @@
     </bpmn:parallelGateway>
     <bpmn:businessRuleTask id="DetermineUserConfirmationTemplates" name="Determine templates">
       <bpmn:extensionElements>
-        <zeebe:calledDecision decisionId="Determine User Confirmation Templates" resultVariable="result" />
+        <zeebe:calledDecision decisionId="UserConfirmationTemplates" resultVariable="result" />
         <zeebe:ioMapping>
           <zeebe:input source="=request.locale" target="locale" />
           <zeebe:output source="=result.Determine User Confirmation Templates" target="templates" />
@@ -174,10 +174,6 @@
           <dc:Bounds x="1017" y="255" width="27" height="14" />
         </bpmndi:BPMNLabel>
       </bpmndi:BPMNShape>
-      <bpmndi:BPMNEdge id="Association_14vrov0_di" bpmnElement="Association_14vrov0">
-        <di:waypoint x="507" y="191" />
-        <di:waypoint x="502" y="141" />
-      </bpmndi:BPMNEdge>
       <bpmndi:BPMNShape id="Event_0194zn9_di" bpmnElement="SendMailError">
         <dc:Bounds x="1092" y="253" width="36" height="36" />
         <bpmndi:BPMNLabel>
@@ -225,8 +221,16 @@
         <di:waypoint x="1110" y="351" />
         <di:waypoint x="1202" y="351" />
       </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Association_14vrov0_di" bpmnElement="Association_14vrov0">
+        <di:waypoint x="507" y="191" />
+        <di:waypoint x="502" y="141" />
+      </bpmndi:BPMNEdge>
       <bpmndi:BPMNShape id="Participant_13m9stq_di" bpmnElement="Participant_13m9stq" isHorizontal="true">
         <dc:Bounds x="160" y="420" width="1420" height="250" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Activity_15i4i63_di" bpmnElement="Activity_1x9oba3ww">
+        <dc:Bounds x="280" y="500" width="100" height="80" />
         <bpmndi:BPMNLabel />
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="Event_1mltf3d_di" bpmnElement="Event_1mltf3d">
@@ -235,18 +239,14 @@
           <dc:Bounds x="1069" y="565" width="86" height="27" />
         </bpmndi:BPMNLabel>
       </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Activity_18bybtq_di" bpmnElement="Activity_1q0ixhz">
+        <dc:Bounds x="1230" y="500" width="100" height="80" />
+      </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="Event_1ydag9j_di" bpmnElement="Event_1ydag9j">
         <dc:Bounds x="1432" y="522" width="36" height="36" />
         <bpmndi:BPMNLabel>
           <dc:Bounds x="1414" y="565" width="75" height="14" />
         </bpmndi:BPMNLabel>
-      </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="Activity_15i4i63_di" bpmnElement="Activity_1x9oba3ww">
-        <dc:Bounds x="280" y="500" width="100" height="80" />
-        <bpmndi:BPMNLabel />
-      </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="Activity_18bybtq_di" bpmnElement="Activity_1q0ixhz">
-        <dc:Bounds x="1230" y="500" width="100" height="80" />
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="Event_176679e_di" bpmnElement="Event_1clz3b2">
         <dc:Bounds x="332" y="482" width="36" height="36" />

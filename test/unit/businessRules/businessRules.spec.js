@@ -60,14 +60,64 @@ describe("Test business rules service", () => {
     });
 
     describe("Test service", () => {
+        let xmlData = fs.readFileSync("./assets/UserConfirmationTemplates.dmn").toString();
 
         it("should deploy a business rule", async () => {
             let objectName = "path/to/example/UserConfirmationTemplates.dmn";
             let groupId = groups[0].uid;
-            put(groupId,objectName, fs.readFileSync("./assets/UserConfirmationTemplates.dmn").toString());
+            put(groupId,objectName, xmlData);
             let result = await broker.call("businessRules.deploy", { objectName }, opts );
             expect(result).toBeDefined();
-            expect(result).toEqual(true);
+        });
+
+        it("should read the business rule again", async () => {
+            let result = await broker.call("businessRules.get", { businessRuleId: "UserConfirmationTemplates" }, opts );
+            expect(result).toBeDefined();
+            expect(result.xmlData).toEqual(xmlData);
+            expect(result.parsed).toBeDefined();
+            expect(result.parsed.id).toEqual("UserConfirmationTemplates");
+            expect(result.parsed.name).toEqual("User Confirmation Templates");
+            expect(typeof result.parsed.ast).toEqual("object");
+        });
+
+        it("should evaluate a business rule", async () => {
+            let context = {
+                "locale": "en-US",
+            };
+            let result = await broker.call("businessRules.evaluate", { businessRuleId: "UserConfirmationTemplates", context }, opts );
+            expect(result).toBeDefined();
+            expect(result).toEqual({
+                'Determine User Confirmation Templates': {
+                  subject: 'User Confirmation Subject en-US',
+                  body: 'User Confirmation Body en-US'
+                }
+            });
+        });
+
+        it("should get a list of business rules", async () => {
+            let result = await broker.call("businessRules.getList", {}, opts );
+            expect(result).toBeDefined();
+            expect(result.length).toEqual(1);
+            expect(result[0].businessRuleId).toEqual("UserConfirmationTemplates");
+        });
+
+        it("should delete a business rule", async () => {
+            let result = await broker.call("businessRules.delete", { businessRuleId: "UserConfirmationTemplates" }, opts );
+            expect(result).toBeDefined();
+        });
+
+        it("should get an empty list of business rules", async () => {
+            let result = await broker.call("businessRules.getList", {}, opts );
+            expect(result).toBeDefined();
+            expect(result.length).toEqual(0);
+        });
+
+        it("should get events of a business rule", async () => {
+            let result = await broker.call("businessRules.getEvents", { businessRuleId: "UserConfirmationTemplates" }, opts );
+            expect(result).toBeDefined();
+            expect(result.length).toEqual(2);
+            expect(result).toContainEqual({ event: "saved", time: expect.any(Date), accessToken, parsed: { id: "UserConfirmationTemplates", name: "User Confirmation Templates", ast: expect.any(Object) }, xmlData });
+            expect(result).toContainEqual({ event: "deleted", time: expect.any(Date), accessToken, businessRuleId: "UserConfirmationTemplates" });
         });
 
     });

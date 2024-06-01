@@ -2,12 +2,14 @@
 
 const { ServiceBroker } = require("moleculer");
 const { FlowService } = require("../../../index");
+const { BusinessRulesService } = require("../../../index");
 const { ExchangeService } = require("../../../index");
 const { StoreProvider } = require("../../../lib/provider/store");
 const { GroupsProvider } = require("../../../lib/provider/groups");
 const { VaultProvider } = require("../../../lib/provider/vault");
 const { QueueProvider } = require("../../../lib/provider/queue");
 const { ExchangeProvider } = require("../../../lib/provider/exchange");
+const { BusinessRulesProvider } = require("../../../index");
 
 // helper & mocks
 const { StoreServiceMock, put, get } = require("../../mocks/store");
@@ -60,7 +62,7 @@ describe("Test flow service basics", () => {
             });
             service = broker.createService({ 
                 name: "flow",
-                mixins: [FlowService, ExchangeProvider, QueueProvider, StoreProvider, GroupsProvider, VaultProvider],
+                mixins: [FlowService, BusinessRulesProvider, ExchangeProvider, QueueProvider, StoreProvider, GroupsProvider, VaultProvider],
                 dependencies: ["v1.groups"],
                 settings: {
                     db: { 
@@ -68,6 +70,19 @@ describe("Test flow service basics", () => {
                         datacenter: process.env.CASSANDRA_DATACENTER || "datacenter1", 
                         keyspace: process.env.CASSANDRA_KEYSPACE_FLOW || "imicros_flow"
                     } 
+                }
+            });
+            broker.createService({
+                name: "businessRules",
+                version: "v1",
+                mixins: [BusinessRulesService,StoreProvider,GroupsProvider,VaultProvider],
+                dependencies: ["v1.groups"],
+                settings: {
+                    db: {
+                        contactPoints: process.env.CASSANDRA_CONTACTPOINTS || "127.0.0.1", 
+                        datacenter: process.env.CASSANDRA_DATACENTER || "datacenter1", 
+                        keyspace: process.env.CASSANDRA_KEYSPACE_DECISION || "imicros_decision"
+                    }
                 }
             });
             service = broker.createService({

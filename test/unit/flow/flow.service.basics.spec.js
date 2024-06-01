@@ -2,6 +2,8 @@
 
 const { ServiceBroker } = require("moleculer");
 const { FlowService } = require("../../../index");
+const { BusinessRulesService } = require("../../../index");
+const { BusinessRulesProvider } = require("../../../index");
 const { StoreProvider } = require("../../../lib/provider/store");
 const { GroupsProvider } = require("../../../lib/provider/groups");
 const { VaultProvider } = require("../../../lib/provider/vault");
@@ -55,7 +57,7 @@ describe("Test flow service basics", () => {
             });
             service = broker.createService({ 
                 name: "flow",
-                mixins: [FlowService, QueueProvider, StoreProvider, GroupsProvider, VaultProvider],
+                mixins: [FlowService, BusinessRulesProvider, QueueProvider, StoreProvider, GroupsProvider, VaultProvider],
                 dependencies: ["v1.groups"],
                 settings: {
                     db: { 
@@ -65,7 +67,20 @@ describe("Test flow service basics", () => {
                     } 
                 }
             });
-            // Start additional services
+            broker.createService({
+                name: "businessRules",
+                version: "v1",
+                mixins: [BusinessRulesService,StoreProvider,GroupsProvider,VaultProvider],
+                dependencies: ["v1.groups"],
+                settings: {
+                    db: {
+                        contactPoints: process.env.CASSANDRA_CONTACTPOINTS || "127.0.0.1", 
+                        datacenter: process.env.CASSANDRA_DATACENTER || "datacenter1", 
+                        keyspace: process.env.CASSANDRA_KEYSPACE_DECISION || "imicros_decision"
+                    }
+                }
+            });
+        // Start additional services
             [AnyService, QueueServiceMock, StoreServiceMock, GroupsServiceMock, VaultServiceMock].map(service => { return broker.createService(service); }); 
             await broker.start();
             expect(service).toBeDefined();

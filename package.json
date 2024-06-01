@@ -37,7 +37,7 @@
     "test-flow-class": "jest test/unit/flow/flow.process.class* --no-cache  --config=local.js --log=console",
     "test-flow-process": "jest test/unit/flow/flow.process* --no-cache  --config=local.js --log=console",
     "test-flow-service": "jest test/unit/flow/flow.service.basics.spec.js --no-cache  --config=local.js --log=console",
-    "test-flow-s": "jest test/unit/flow/flow.service.Timers* --no-cache  --config=local.js --log=console",
+    "test-flow-s": "jest test/unit/flow/flow.service.UserC* --no-cache  --config=local.js --log=console",
     "test-i-admin": "jest test/integration/01-admin.spec.js --no-cache  --config=local.js  --forceExit",
     "test-i-newUser": "jest test/integration/02-newUser.spec.js --runInBand --no-cache  --config=local.js",
     "test-i-store": "jest test/integration/03-store.spec.js --runInBand --no-cache  --config=local.js"
