@@ -1,6 +1,6 @@
 "use strict";
 
-const { setup, unseal, teardown, admin, getServer } = require("../helper/node");
+const { Node } = require("../helper/node");
 const { v4: uuid } = require("uuid");
 const request = require("supertest");
 const { users } = require("../helper/shared");
@@ -12,19 +12,15 @@ jest.setTimeout(50000);
 
 describe("Test creation new user", () => {
 
-    let broker, server, authObject;
+    let node, server, authObject;
 
     beforeAll(async () => {
-        broker  = await setup("node-1");
-        server = getServer();
-        await unseal();
-        await broker.waitForServices(["v1.users","v1.groups","admin","unsealed"]);
+        node = await new Node({ nodeID: "node-2", port: 3001 }).setup();
+        server = node.getServer();
     });
 
     afterAll(async () => {
-        // const delay = ms => new Promise(resolve => setTimeout(resolve, ms))
-        // await delay(10000) /// waiting 10 second for issuing logs.
-        await teardown();
+        await node.stop();
     });
 
     describe("Test path v1/users/registerPWA", () => {

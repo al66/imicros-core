@@ -8,7 +8,7 @@ function initEvents () {
     }
 }
 
-const Collect = {
+const CollectUsersEvents = {
     name: "helper.collect",
     events: {
         "**": {
@@ -20,6 +20,61 @@ const Collect = {
                 this.events[ctx.eventName] ? this.events[ctx.eventName].push({payload: ctx.params, sender, event, ctx}) : this.events[event] = [{payload, sender, event, ctx}];
             }
         }
+
+    },
+    created () {
+        this.events = events;
+    }
+};
+const CollectGroupsEvents = {
+    name: "helper.collect.groups",
+    events: {
+        "**": {
+            group: "groups", // could also be "groups", "agents", "admin"
+            handler (ctx) {
+                const sender = ctx.nodeID;
+                const payload = ctx.params;
+                const event = ctx.eventName;
+                this.events[ctx.eventName] ? this.events[ctx.eventName].push({payload: ctx.params, sender, event, ctx}) : this.events[event] = [{payload, sender, event, ctx}];
+            }
+        }
+
+    },
+    created () {
+        this.events = events;
+    }
+};
+const CollectAdminEvents = {
+    name: "helper.collect.admin",
+    events: {
+        "**": {
+            group: "admin", // could also be "groups", "agents", "admin"
+            handler (ctx) {
+                const sender = ctx.nodeID;
+                const payload = ctx.params;
+                const event = ctx.eventName;
+                this.events[ctx.eventName] ? this.events[ctx.eventName].push({payload: ctx.params, sender, event, ctx}) : this.events[event] = [{payload, sender, event, ctx}];
+            }
+        }
+
+    },
+    created () {
+        this.events = events;
+    }
+};
+const CollectEvents = {
+    name: "helper.collect.events",
+    events: {
+        "**": {
+            group: "events", // could also be "groups", "agents", "admin"
+            handler (ctx) {
+                const sender = ctx.nodeID;
+                const payload = ctx.params;
+                const event = ctx.eventName;
+                this.events[ctx.eventName] ? this.events[ctx.eventName].push({payload: ctx.params, sender, event, ctx}) : this.events[event] = [{payload, sender, event, ctx}];
+            }
+        }
+
     },
     created () {
         this.events = events;
@@ -27,7 +82,10 @@ const Collect = {
 };
 
 module.exports = {
-    Collect,
+    CollectUsersEvents,
+    CollectGroupsEvents,
+    CollectAdminEvents,
+    CollectEvents,
     events,
     initEvents
 };

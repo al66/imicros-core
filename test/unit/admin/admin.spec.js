@@ -1,7 +1,6 @@
 "use strict";
 
 const { ServiceBroker } = require("moleculer");
-const { Middleware: ChannelsMiddleware } = require("@moleculer/channels");
 const { AdminService } = require("../../../index");
 const { UsersService } = require("../../../index");
 const { GroupsService } = require("../../../index");
@@ -12,12 +11,10 @@ const { Encryption } = require("../../../lib/provider/encryption");
 const { VaultProvider } = require("../../../lib/provider/vault");
 const { Constants } = require("../../../lib/classes/util/constants");
 
-// const { logLevel } = require("kafkajs");
-
 // helper & mocks
 const { credentials } = require("../../helper/credentials");
 const { VaultServiceMock } = require("../../mocks/vault");
-const { Collect, events, initEvents } = require("../../helper/collect");
+const { CollectAdminEvents, CollectEvents, events, initEvents } = require("../../helper/collect");
 
 const jwt = require("jsonwebtoken");
 const { v4: uuid } = require("uuid");
@@ -39,46 +36,6 @@ const groups = [
         label: "second group"
     }
 ]
-
-const adapter = process.env.KAFKA_BROKER ? {
-    type: "Kafka",
-    options: {
-        // group
-        // maxRetries: 5,
-        kafka: {
-            brokers: [process.env.KAFKA_BROKER],
-            ssl: null,     // refer to kafkajs documentation
-            sasl: null,   // refer to kafkajs documentation
-            connectionTimeout: 1000,
-            retry: {
-                initialRetryTime: 100,
-                retries: 8
-            }
-        }
-    }
-} : {
-    type: "Fake",
-    options: {}
-}
-
-const received = [];
-const Inspect = {
-    name: "inspect",
-    channels: {
-        async "imicros.internal.events" (wrappedEvent, raw) {
-            // console.log("Received:", { wrappedEvent, raw });
-            received.push(wrappedEvent);
-        }
-        /*
-        "imicros.internal.events": {
-            context: true,
-            async handler (ctx) {
-                console.log("Received:", { ctx });
-            }
-        }
-        */
-    }
-}
 
 // Build provider for MemoryDB
 const { DefaultDatabase } = require("../../../lib/classes/cqrs/cqrs");
@@ -134,14 +91,8 @@ describe.each([
         it("should start the broker", async () => {
             broker = new ServiceBroker({
                 logger: console,
-                logLevel: "info", //"debug"
-                middlewares: [
-                    ChannelsMiddleware({
-                        adapter
-                    })
-                ]
+                logLevel: "info" //"debug"
             });
-            broker.createService(Inspect);
             broker.createService({
                 mixins: [UsersService, database, Publisher, Encryption, Serializer, Keys, VaultProvider], 
                 dependencies: ["v1.vault"],
@@ -189,16 +140,6 @@ describe.each([
                     email: admin.email,
                     initialPassword: admin.password,
                     locale: admin.locale,
-                    events: [
-                        "UserConfirmationRequested",
-                        "UserPasswordResetRequested",
-                        "UserDeletionRequested",
-                        "UserDeletionConfirmed",
-                        "GroupCreated",
-                        "GroupDeletionConfirmed"
-                    ],
-                    channel: "imicros.internal.events",
-                    adapter: "Kafka",
                     keys: {
                         db: {
                             contactPoints: process.env.CASSANDRA_CONTACTPOINTS || "127.0.0.1", 
@@ -215,7 +156,8 @@ describe.each([
                     }
                 }
             });
-            broker.createService(Collect);
+            broker.createService(CollectAdminEvents);
+            broker.createService(CollectEvents);
             broker.createService(VaultServiceMock);
             await broker.start();
             expect(broker).toBeDefined()
@@ -326,25 +268,19 @@ describe.each([
 
     describe("Test emit & receive", () => {   
         it("should emit and receive an event", async () => {
-            const opts = { meta: { owner: groups[0].uid } }
+            const opts = { meta: { ownerId: groups[0].uid }, groups: ["users","groups","agents","admin"] }
             const payload = {
                 any: "content"
             }
             const result = await  broker.emit("UserConfirmationRequested", payload, opts);
-            // console.log(events);
             expect(result).toBeDefined();
-            expect(events["UserConfirmationRequested"].length).toEqual(1);
-            //console.log(events["UserConfirmationRequested"])
+            console.log(events["UserConfirmationRequested"])
+            expect(events["UserConfirmationRequested"].length).toEqual(2);  
+            expect(events["UserConfirmationRequested"][0].ctx.meta.ownerId).toEqual(groups[0].uid);
             expect(events["UserConfirmationRequested"][0].payload).toEqual(payload);
-            // wait some time for processing
-            await new Promise(resolve => setTimeout(resolve, 500));
-            expect(received.length).toEqual(1);
-            expect(received[0].event).toEqual("UserConfirmationRequested");
-            expect(received[0].owner).toEqual(adminGroupId);
-            expect(received[0].origin).toEqual(groups[0].uid);
-            expect(received[0].payload).toEqual({
-                any: "content"
-            });
+            expect(events["UserConfirmationRequested"][1].ctx.meta.ownerId).toEqual(adminGroupId);
+            expect(events["UserConfirmationRequested"][1].ctx.meta.origin).toEqual(groups[0].uid);
+            expect(events["UserConfirmationRequested"][1].payload).toEqual(payload);
         });
 
     });

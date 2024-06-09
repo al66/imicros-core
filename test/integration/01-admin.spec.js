@@ -1,6 +1,6 @@
 "use strict";
 
-const { setup, unseal, teardown, admin, getServer } = require("../helper/node");
+const { Node, admin } = require("../helper/node");
 const { v4: uuid } = require("uuid");
 const request = require("supertest");
 
@@ -10,23 +10,15 @@ jest.setTimeout(50000);
 
 describe("Test admin user", () => {
 
-    let broker, server;
+    let node, server, accessDataAdminGroup;
 
     beforeAll(async () => {
-        broker  = await setup("node-1");
-        server = getServer();
-        await unseal();
-        await broker.waitForServices(["v1.users","v1.groups","admin","unsealed"]);
+        node = await new Node({ nodeID: "node-1", port: 3000 }).setup();
+        server = node.getServer();
     });
 
     afterAll(async () => {
-        // const delay = ms => new Promise(resolve => setTimeout(resolve, ms))
-        // await delay(10000) /// waiting 10 second for issuing logs.
-        await teardown();
-    });
-
-    it("it should init a node and create an admin user", async () => {
-        expect(broker).toBeDefined();
+        await node.stop();
     });
 
     it("should login the admin, retrieve the admin group and gat access to the admin group", async () => {
@@ -44,9 +36,8 @@ describe("Test admin user", () => {
         // console.log(userData);
         res = await request(server).post("/v1/groups/requestAccessForMember").set("Authorization","Bearer "+authData.authToken).send({ groupId: Object.values(userData.groups)[0].groupId });
         expect(res.statusCode).toBe(200);
-        const accessDataAdminGroup = res.body;
-        console.log(global);
-        global.shared.setToken("accessDataAdminGroup", accessDataAdminGroup);
+        accessDataAdminGroup = res.body;
+        accessDataAdminGroup.groupId = Object.values(userData.groups)[0].groupId;
         res = await request(server).post("/v1/groups/get").set("Authorization","Bearer "+accessDataAdminGroup.accessToken).send({ groupId: Object.values(userData.groups)[0].groupId });
         expect(res.statusCode).toBe(200);
         res = await request(server).post("/v1/groups/encrypt").set("Authorization","Bearer "+accessDataAdminGroup.accessToken).send({ data: { any: "object" } });
@@ -55,10 +46,9 @@ describe("Test admin user", () => {
         res = await request(server).post("/v1/groups/decrypt").set("Authorization","Bearer "+accessDataAdminGroup.accessToken).send({ encrypted: encryptedData });
         expect(res.statusCode).toBe(200);
         expect(res.body).toEqual({ any: "object" });
-        // console.log(encryptedData);
         /*
         const requests = [];
-        const count = 200;
+        const count = 200;  // ~ maximum on a single node with 1 core
         for (let i=0; i<count; i++)  {
             res = request(server).post("/v1/groups/decrypt").set("Authorization","Bearer "+accessDataAdminGroup.accessToken).send({ encrypted: encryptedData });
             requests.push(res);
@@ -75,5 +65,33 @@ describe("Test admin user", () => {
         expect(success).toBe(count);
         */
     });
+
+    it("should create a bucket", async () => {
+        let res = await request(server).post("/v1/store/makeBucket").set("Authorization","Bearer "+accessDataAdminGroup.accessToken).send({});
+        expect(res.statusCode).toBe(200);
+        expect(res.body).toBeDefined();
+        expect(res.body.bucketName).toEqual(accessDataAdminGroup.groupId);
+    });
+
+
+    it("it should upload the basic workflow files", () => {
+        return request(server)
+            .post("/v1/store/objects")
+            .set("Authorization","Bearer "+accessDataAdminGroup.accessToken)
+            .attach("workflow/UserConfirmationTemplates.dmn","assets/UserConfirmationTemplates.dmn")
+            .attach("workflow/UserConfirmationRequested.bpmn","assets/UserConfirmationRequested.bpmn")
+            .then(res => {
+                expect(res.statusCode).toBe(200);
+                expect(res.body).toContainObject({ bucketName: accessDataAdminGroup.groupId, objectName: "workflow/UserConfirmationTemplates.dmn" });
+                expect(res.body).toContainObject({ bucketName: accessDataAdminGroup.groupId, objectName: "workflow/UserConfirmationRequested.bpmn" });
+            });
+    });
+
+    it("should render a given template", async () => {
+        let res = await request(server).post("/v1/templates/render").set("Authorization","Bearer "+accessDataAdminGroup.accessToken).send({ template: "Hello, {{ name }}!", data: { name: "my friend" } });
+        expect(res.statusCode).toBe(200);
+        expect(res.body).toEqual("Hello, my friend!");
+    });
+
 
 });

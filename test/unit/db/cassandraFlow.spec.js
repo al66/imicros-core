@@ -381,7 +381,7 @@ describe("Test database connection", () => {
                 expect(res[5].subscriptionId).toBeDefined();
                 expect(res[5].subscription.processId).toEqual(parsedData.process.id);
                 expect(res[5].subscription.versionId).toEqual(parsedData.version.id);
-                expect(res[5].subscription.instanceId).toEqual(expect.any(String));
+                expect(res.filter(sub =>  sub.subscription?.instanceId !== null).length).toEqual(10);
             });
         });
 

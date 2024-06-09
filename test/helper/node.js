@@ -1,23 +1,36 @@
 const { ServiceBroker } = require("moleculer");
+
 const { UsersService: UsersBasic } = require("../../index");
 const { GroupsService: GroupsBasic } = require("../../index");
 const { AgentsService: AgentsBasic } = require("../../index");
+const { AdminService: AdminBasic } = require("../../index");
+const { VaultService: VaultBasic } = require("../../index");
+const { StoreService: StoreBasic }  = require("../../index");
+const { TemplateService: TemplateBasic } = require("../../index");
+const { FlowService: FlowBasic } = require("../../index");
+const { BusinessRulesService: BusinessRulesBasic } = require("../../index");
+const VaultHelper = require("./vault");
+
 const { Serializer } = require("../../lib/provider/serializer");
 const { Publisher } = require("../../lib/provider/publisher");
 const { Keys } = require("../../lib/provider/keys");
 const { Encryption } = require("../../lib/provider/encryption");
+
 const { VaultProvider } = require("../../lib/provider/vault");
 const { GroupsProvider } = require("../../lib/provider/groups");
-const { VaultService:VaultBasic } = require("../../index");
-const { AdminService: AdminBasic } = require("../../index");
+const { StoreProvider } = require("../../lib/provider/store");
+const { BusinessRulesProvider } = require("../../index");
+const { QueueProvider } = require("../../index");
+
 const { Constants } = require("../../lib/classes/util/constants");
 const ApiService = require("moleculer-web");
 const { GatewayMixin}  = require("../../index");
 const { Authorized }  = require("../../index");
-const { StoreService: StoreBasic }  = require("../../index");
 const { CassandraDB } = require("./db");
 const request = require("supertest");
 const _ = require("../../lib/modules/util/lodash");
+const { v4: uuid } = require("uuid");
+const { init } = require("secrets.js-grempe");
 
 const Gateway = {
     name: "gateway",
@@ -151,14 +164,17 @@ const timestamp = Date.now();
 const Vault = { 
     name: "vault",
     version: "v1",
-    mixins: [VaultBasic],
+    mixins: [VaultHelper],
     settings: {
+        masterKey : "my very secret master key",
+        /*
         db: {
             contactPoints: process.env.CASSANDRA_CONTACTPOINTS || "127.0.0.1", 
             datacenter: process.env.CASSANDRA_DATACENTER || "datacenter1", 
             keyspace: process.env.CASSANDRA_KEYSPACE || "imicros_keys" ,
             hashTable: "hashes_test_" + timestamp
         },
+        */
         service: {
             unsealed: "unsealed",
         },
@@ -216,16 +232,6 @@ const Admin = {
         email: admin.email,
         initialPassword: admin.password,
         locale: admin.locale,
-        events: [
-            "UserConfirmationRequested",
-            "UserPasswordResetRequested",
-            "UserDeletionRequested",
-            "UserDeletionConfirmed",
-            "GroupCreated",
-            "GroupDeletionConfirmed"
-        ],
-        channel: "imicros.internal.events",
-        adapter: "Kafka",
         keys: settings.keys,
         repository:settings.repository,
         vault: settings.vault
@@ -243,10 +249,18 @@ const Store = {
     }
 }
 
+const Templates = {
+    name: "templates",
+    version: "v1",
+    mixins: [TemplateBasic, StoreProvider]
+}
+
 const brokers = [];
 let server;
 
 async function setup (nodeID) {
+    const console = global.console;
+    if (process.env.LOG === "console") global.console = require('console');        
     const broker = new ServiceBroker({ 
         nodeID: nodeID || "node-1",
         logger: true,
@@ -263,10 +277,13 @@ async function setup (nodeID) {
     broker.createService(Groups);
     broker.createService(Admin);
     broker.createService(Store);
+    broker.createService(Templates);
     broker.start();
     await broker.waitForServices(["gateway","v1.vault"]);
     brokers.push(broker);
     broker.logger.info("setup finished");
+    await broker.waitForServices(["v1.users","v1.groups","admin","unsealed", "v1.templates"]);
+    if (process.env.LOG === "console") global.console = console;        
     return broker;
 }
 
@@ -309,10 +326,121 @@ function getServer () {
     return server;
 }
 
+async function getAdminGroupAccess () {
+    const console = global.console;
+    if (process.env.LOG === "console") global.console = require('console');        
+    const server = getServer();
+    let res = await request(server).post("/v1/users/logInPWA").send({
+        sessionId : uuid(),
+        email: admin.email,
+        password: admin.password,
+        locale: admin.locale
+    });
+    authData = res.body;
+    res = await request(server).get("/v1/users/get").set("Authorization","Bearer "+authData.authToken).send({});
+    const userData = res.body;
+    adminGroupId = Object.values(userData.groups)[0].groupId;
+    res = await request(server).post("/v1/groups/requestAccessForMember").set("Authorization","Bearer "+authData.authToken).send({ groupId: adminGroupId });
+    accessDataAdminGroup = res.body;
+    accessDataAdminGroup.groupId = adminGroupId;
+    accessDataAdminGroup.admin = admin;
+    //res = await request(server).post("/v1/groups/get").set("Authorization","Bearer "+accessDataAdminGroup.accessToken).send({ groupId: adminGroupId });
+    if (process.env.LOG === "console") global.console = console;        
+    return accessDataAdminGroup;
+}
+
 async function teardown () {
+    const console = global.console;
+    if (process.env.LOG === "console") global.console = require('console');        
     for (let i=0; i<brokers.length; i++) {
         await brokers[i].stop();
     }
+    if (process.env.LOG === "console") global.console = console;        
 }
 
-module.exports = { setup, unseal, teardown, admin, getServer };
+const nodes = {};
+
+class Node {
+    constructor ({ nodeID, port }) {
+        this.nodeID = nodeID;
+        this.port = port;
+        nodes[nodeID] = this;
+    }
+
+    static getNode (nodeID) {
+        return nodes[nodeID];
+    }
+
+    async setup () {
+        this.initConsole();  
+        const broker = new ServiceBroker({ 
+            nodeID: this.nodeID || "node-1",
+            logger: true,
+            transporter: process.env.NATS_TRANSPORTER || "nats://localhost:4222",
+            logLevel: "info",
+            // middlewares: [Authorized({ service: "v1.groups"})]
+            middlewares: [Authorized()]
+        });
+        Gateway.settings.port = this.port || 3000;
+        const gateway = broker.createService(Gateway);
+        this.server = gateway.server;
+        broker.createService(Vault);
+        broker.createService(Users);
+        broker.createService(Agents);
+        broker.createService(Groups);
+        broker.createService(Admin);
+        broker.createService(Store);
+        broker.createService(Templates);
+        broker.start();
+        await broker.waitForServices(["gateway","v1.vault"]);
+        brokers.push(broker);
+        broker.logger.info("setup finished");
+        await broker.waitForServices(["v1.users","v1.groups","admin","unsealed", "v1.templates"]);
+        this.broker = broker;   
+        this.resetConsole();        
+        return this;
+    }    
+
+    getServer () {
+        return this.server;
+    }
+
+    async stop () {
+        this.initConsole();        
+        await this.broker.stop();
+        this.resetConsole();        
+    }
+    
+    async getAdminGroupAccess () {
+        this.initConsole();        
+        let res = await request(this.server).post("/v1/users/logInPWA").send({
+            sessionId : uuid(),
+            email: admin.email,
+            password: admin.password,
+            locale: admin.locale
+        });
+        const authData = res.body;
+        res = await request(this.server).get("/v1/users/get").set("Authorization","Bearer "+authData.authToken).send({});
+        const userData = res.body;
+        const adminGroupId = Object.values(userData.groups)[0].groupId;
+        res = await request(this.server).post("/v1/groups/requestAccessForMember").set("Authorization","Bearer "+authData.authToken).send({ groupId: adminGroupId });
+        const accessDataAdminGroup = res.body;
+        accessDataAdminGroup.groupId = adminGroupId;
+        accessDataAdminGroup.admin = admin;
+        //res = await request(server).post("/v1/groups/get").set("Authorization","Bearer "+accessDataAdminGroup.accessToken).send({ groupId: adminGroupId });
+        this.resetConsole(); 
+        return accessDataAdminGroup;
+    }
+
+    initConsole() {
+        this.console = global.console;
+        if (process.env.LOG === "console") global.console = require('console');        
+    }
+
+    resetConsole() {
+        if (process.env.LOG === "console") global.console = this.console;        
+    }
+
+}
+
+module.exports = { setup, unseal, teardown, admin, getServer, getAdminGroupAccess, Node };

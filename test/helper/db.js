@@ -25,7 +25,8 @@ const CassandraDB = {
         });
     },
     async started () {
-        console.log("Service start db", this.name);
+        //console.log("Service start db", this.logger);
+        this.logger.info("Service start db", this.name);
         await this.db.connect();
     },
     async stopped () {

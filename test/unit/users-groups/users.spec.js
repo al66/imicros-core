@@ -14,7 +14,7 @@ const { Constants } = require("../../../lib/classes/util/constants");
 
 // helper & mocks
 const { VaultServiceMock } = require("../../mocks/vault");
-const { Collect, events, initEvents } = require("../../helper/collect");
+const { CollectUsersEvents, events, initEvents } = require("../../helper/collect");
 const { users, groups, agents } = require("../../helper/shared");
 const { MemoryDB, CassandraDB } = require("../../helper/db");
 
@@ -130,7 +130,7 @@ describe.each([
                     }
                 }
             })
-            broker.createService(Collect);
+            broker.createService(CollectUsersEvents);
             broker.createService(VaultServiceMock);
             broker.createService(TestService);
             await broker.start();

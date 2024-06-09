@@ -16,7 +16,7 @@ const { credentials } = require("../../helper/credentials");
 // const { StoreMixin, put, get, getStore } = require("../../mocks/store.mixin");
 const { StoreServiceMock, put, get } = require("../../mocks/store");
 const { QueueServiceMock, queue } = require("../../mocks/queue");
-const { Collect, events, initEvents } = require("../../helper/collect");
+const { CollectEvents, events, initEvents } = require("../../helper/collect");
 const { GroupsServiceMock } = require("../../mocks/groups");
 const { VaultServiceMock } = require("../../mocks/vault");
 const { setTimeout } = require("timers/promises");
@@ -80,7 +80,7 @@ describe("Test exchange service", () => {
                 }    
             });
             // Start additional services
-            [QueueServiceMock, GroupsServiceMock, VaultServiceMock, StoreServiceMock, Collect].map(service => { return broker.createService(service); }); 
+            [QueueServiceMock, GroupsServiceMock, VaultServiceMock, StoreServiceMock, CollectEvents].map(service => { return broker.createService(service); }); 
             await broker.start();
             expect(service).toBeDefined();
         });
