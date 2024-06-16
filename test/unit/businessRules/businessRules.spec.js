@@ -88,8 +88,8 @@ describe("Test business rules service", () => {
             expect(result).toBeDefined();
             expect(result).toEqual({
                 'Determine User Confirmation Templates': {
-                  subject: 'User Confirmation Subject en-US',
-                  body: 'User Confirmation Body en-US'
+                  subject: 'workflow/templates/User Confirmation Subject en-US.json',
+                  body: 'workflow/templates/User Confirmation Body en-US.json'
                 }
             });
         });

@@ -32,7 +32,7 @@ describe("Test store service", () => {
         it("it should create a bucket for 1. owner", () => {
             let opts = { meta: { acl: { ownerId: groups[0].uid } } };
             let params = {};
-            return broker.call("v1.minio.makeBucket", params, opts).then(res => {
+            return broker.call("v1.store.makeBucket", params, opts).then(res => {
                 expect(res).toBeDefined();
                 expect(res.bucketName).toBeDefined();
                 expect(res.bucketName).toEqual(groups[0].uid);
@@ -43,7 +43,7 @@ describe("Test store service", () => {
         it("it should create a bucket for 2. owner", () => {
             let opts = { meta: { acl: { ownerId: groups[1].uid } } };
             let params = {};
-            return broker.call("v1.minio.makeBucket", params, opts).then(res => {
+            return broker.call("v1.store.makeBucket", params, opts).then(res => {
                 expect(res).toBeDefined();
                 expect(res.bucketName).toBeDefined();
                 expect(res.bucketName).toEqual(groups[1].uid);
@@ -62,7 +62,7 @@ describe("Test store service", () => {
             opts.meta.store = {
                 objectName: "imicros.png"      
             };
-            return broker.call("v1.minio.putObject", fstream, opts).then(res => {
+            return broker.call("v1.store.putObject", fstream, opts).then(res => {
                 expect(res).toBeDefined();
                 expect(res.objectName).toBeDefined();
                 expect(res.objectName).toEqual("imicros.png");
@@ -78,7 +78,7 @@ describe("Test store service", () => {
                 opts.meta.store = {
                     objectName: "imicros_"+i+".png"      
                 };
-                await broker.call("v1.minio.putObject", fstream, opts).then(res => {
+                await broker.call("v1.store.putObject", fstream, opts).then(res => {
                     expect(res).toBeDefined();
                     expect(res.objectName).toBeDefined();
                     expect(res.objectName).toEqual("imicros_"+i+".png" );
@@ -103,7 +103,7 @@ describe("Test store service", () => {
                 });
             } 
             
-            let stream = await broker.call("v1.minio.getObject", params, opts);
+            let stream = await broker.call("v1.store.getObject", params, opts);
             await receive(stream);
             const orgBuf = fs.readFileSync("assets/imicros.png");
             const restoredBuf = fs.readFileSync("assets/imicros.restored.png");
@@ -116,7 +116,7 @@ describe("Test store service", () => {
             let params = {
                 objectName: "imicros.png"      
             };
-            return broker.call("v1.minio.statObject", params, opts).then(res => {
+            return broker.call("v1.store.statObject", params, opts).then(res => {
                 expect(res).toBeDefined();
                 expect(res.size).toBeDefined();
                 expect(res.lastModified).toBeDefined();
@@ -130,7 +130,7 @@ describe("Test store service", () => {
             let opts = { meta: { acl: { ownerId: groups[0].uid } } };
             let params = {
             };
-            return broker.call("v1.minio.listObjectsArray", params, opts).then(res => {
+            return broker.call("v1.store.listObjectsArray", params, opts).then(res => {
                 expect(res).toBeDefined();
                 expect(res).toEqual(expect.arrayContaining([expect.objectContaining({ name: "imicros.png" })]));
                 expect(res).toEqual(expect.arrayContaining([expect.objectContaining({ name: "imicros_1.png" })]));
@@ -150,7 +150,7 @@ describe("Test store service", () => {
                     stream.on("error", reject);
                 });
             } 
-            let stream = await broker.call("v1.minio.listObjects", params, opts);
+            let stream = await broker.call("v1.store.listObjects", params, opts);
             let res = await receive(stream);
             expect(res).toBeDefined();
             expect(res).toEqual(expect.arrayContaining([expect.objectContaining({ name: "imicros.png" })]));
@@ -164,7 +164,7 @@ describe("Test store service", () => {
             let params = {
                 objectName: "imicros.png"      
             };
-            return broker.call("v1.minio.removeObject", params, opts).then(res => {
+            return broker.call("v1.store.removeObject", params, opts).then(res => {
                 expect(res).toBeDefined();
                 expect(res.objectName).toBeDefined();
                 expect(res.objectName).toEqual("imicros.png");
@@ -181,7 +181,7 @@ describe("Test store service", () => {
             for (let i=0; i<5; i++) {
                 params.objectsList.push("imicros_"+i+".png");
             }
-            return broker.call("v1.minio.removeObjects", params, opts).then(res => {
+            return broker.call("v1.store.removeObjects", params, opts).then(res => {
                 expect(res).toBeDefined();
                 expect(res).toEqual(true);
             });
@@ -194,7 +194,7 @@ describe("Test store service", () => {
                 objectName: "test object",
                 value: "this is a test"      
             };
-            return broker.call("v1.minio.put", params, opts).then(async res => {
+            return broker.call("v1.store.put", params, opts).then(async res => {
                 expect(res).toBeDefined();
                 expect(res.objectName).toBeDefined();
                 expect(res.objectName).toEqual(params.objectName);
@@ -210,7 +210,7 @@ describe("Test store service", () => {
             let params = {
                 objectName: "test object"
             };
-            return broker.call("v1.minio.get", params, opts).then(res => {
+            return broker.call("v1.store.get", params, opts).then(res => {
                 expect(res).toBeDefined();
                 expect(res).toEqual("this is a test");
             });
@@ -222,7 +222,7 @@ describe("Test store service", () => {
             opts.meta.store = {
                 objectName: "stream test"      
             };
-            return broker.call("v1.minio.putObject", stream, opts).then(async res => {
+            return broker.call("v1.store.putObject", stream, opts).then(async res => {
                 expect(res).toBeDefined();
                 expect(res.objectName).toBeDefined();
                 expect(res.objectName).toEqual("stream test");
@@ -239,7 +239,7 @@ describe("Test store service", () => {
                 objectName: "test object",
                 value: { a: {b:3,c:4}}      
             };
-            return broker.call("v1.minio.put", params, opts).then(async res => {
+            return broker.call("v1.store.put", params, opts).then(async res => {
                 expect(res).toBeDefined();
                 expect(res.objectName).toBeDefined();
                 expect(res.objectName).toEqual(params.objectName);
@@ -255,7 +255,7 @@ describe("Test store service", () => {
             let params = {
                 objectName: "test object"
             };
-            return broker.call("v1.minio.get", params, opts).then(res => {
+            return broker.call("v1.store.get", params, opts).then(res => {
                 expect(res).toBeDefined();
                 expect(res).toEqual({ a: { b:3, c:4 } });
             });
@@ -267,7 +267,7 @@ describe("Test store service", () => {
             let params = {
                 objectName: "test object 2"
             };
-            return broker.call("v1.minio.get", params, opts).then(res => {
+            return broker.call("v1.store.get", params, opts).then(res => {
                 expect(res).toBeDefined();
                 expect(res).toEqual({ a: { b:3, c:4 } });
             });
@@ -287,7 +287,7 @@ describe("Test store service", () => {
                         owner: "owner" + i,
                     }      
                 };
-                calls.push(broker.call("v1.minio.put", params, opts));
+                calls.push(broker.call("v1.store.put", params, opts));
             }
             await Promise.all(calls);
             console.timeEnd("put collection");
@@ -296,7 +296,7 @@ describe("Test store service", () => {
             let params = {
                 path: "collection/"
             };
-            return broker.call("v1.minio.getCollection", params, opts).then(res => {
+            return broker.call("v1.store.getCollection", params, opts).then(res => {
                 console.timeEnd("get collection");
                 expect(res).toBeDefined();
                 for (let i=0; i<collectionCount; i++) {
@@ -313,7 +313,7 @@ describe("Test store service", () => {
                 objectName: "test object",
                 value:true      
             };
-            return broker.call("v1.minio.put", params, opts).then(res => {
+            return broker.call("v1.store.put", params, opts).then(res => {
                 expect(res).toBeDefined();
                 expect(res.objectName).toBeDefined();
                 expect(res.objectName).toEqual(params.objectName);
@@ -327,7 +327,7 @@ describe("Test store service", () => {
             let params = {
                 objectName: "test object"
             };
-            return broker.call("v1.minio.get", params, opts).then(res => {
+            return broker.call("v1.store.get", params, opts).then(res => {
                 expect(res).toBeDefined();
                 expect(res).toEqual(true);
             });
@@ -339,7 +339,7 @@ describe("Test store service", () => {
                 objectName: "test object",
                 value:56.7     
             };
-            return broker.call("v1.minio.put", params, opts).then(res => {
+            return broker.call("v1.store.put", params, opts).then(res => {
                 expect(res).toBeDefined();
                 expect(res.objectName).toBeDefined();
                 expect(res.objectName).toEqual(params.objectName);
@@ -353,7 +353,7 @@ describe("Test store service", () => {
             let params = {
                 objectName: "test object"
             };
-            return broker.call("v1.minio.get", params, opts).then(res => {
+            return broker.call("v1.store.get", params, opts).then(res => {
                 expect(res).toBeDefined();
                 expect(res).toEqual(56.7);
             });
@@ -365,7 +365,7 @@ describe("Test store service", () => {
                 objectsList: []      
             };
             params.objectsList.push("test object");
-            return broker.call("v1.minio.removeObjects", params, opts).then(res => {
+            return broker.call("v1.store.removeObjects", params, opts).then(res => {
                 expect(res).toBeDefined();
                 expect(res).toEqual(true);
             });
@@ -380,7 +380,7 @@ describe("Test store service", () => {
             for (let i=0; i<collectionCount; i++) {
                 params.objectsList.push("collection/collection object" + i);
             }
-            return broker.call("v1.minio.removeObjects", params, opts).then(res => {
+            return broker.call("v1.store.removeObjects", params, opts).then(res => {
                 expect(res).toBeDefined();
                 expect(res).toEqual(true);
             });
@@ -397,7 +397,7 @@ describe("Test store service", () => {
             let opts = { meta: { acl: { ownerId: groups[0].uid } } };
             let params = {
             };
-            let res = await broker.call("v1.minio.listBuckets", params, opts);
+            let res = await broker.call("v1.store.listBuckets", params, opts);
             expect(res).toBeDefined();
             expect(res).toEqual(expect.arrayContaining([expect.objectContaining({ name: groups[0].uid })]));
             expect(res).toEqual(expect.arrayContaining([expect.objectContaining({ name: groups[1].uid })]));
@@ -412,7 +412,7 @@ describe("Test store service", () => {
         it("it should remove bucket for 1. owner", () => {
             let opts = { meta: { acl: { ownerId: groups[0].uid } } };
             let params = {};
-            return broker.call("v1.minio.removeBucket", params, opts).then(res => {
+            return broker.call("v1.store.removeBucket", params, opts).then(res => {
                 expect(res).toBeDefined();
                 expect(res.bucketName).toBeDefined();
                 expect(res.bucketName).toEqual(groups[0].uid);
@@ -423,7 +423,7 @@ describe("Test store service", () => {
         it("it should remove bucket for 2. owner", () => {
             let opts = { meta: { acl: { ownerId: groups[1].uid } } };
             let params = {};
-            return broker.call("v1.minio.removeBucket", params, opts).then(res => {
+            return broker.call("v1.store.removeBucket", params, opts).then(res => {
                 expect(res).toBeDefined();
                 expect(res.bucketName).toBeDefined();
                 expect(res.bucketName).toEqual(groups[1].uid);

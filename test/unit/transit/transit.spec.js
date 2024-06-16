@@ -4,6 +4,7 @@
 
 const { ServiceBroker } = require("moleculer");
 const { Transit } = require("../../../index");
+const util = require("util");
 
 const options = {
     db: {
@@ -17,6 +18,7 @@ const options = {
 let events = [];
 const Listener = {
     name: "Listener",
+    version: "v1",
     events: {
         "**"(payload, sender, event, ctx) {
             events.push({
@@ -29,8 +31,14 @@ const Listener = {
         }
     },
     actions: {
-        test(ctx) {
-            this.logger.info("called action",ctx);
+        test: {
+            acl: {
+                before: true
+            },
+            repeatable: true,
+            handler(ctx) {
+                this.logger.info("called action",ctx);
+            }
         }
     }
 }
@@ -97,7 +105,8 @@ describe("Test transit encryption", () => {
         await brokers[0].registry.discoverer.discoverNode("third");
         */
         // 
-        await brokers[0].waitForServices("Listener");
+        await brokers[0].waitForServices("v1.Listener");
+        brokers.map(async broker => console.log(util.inspect(await broker.call("$node.services",{ skipInternal: true, withActions: true }), { showHidden: false, depth: null, colors: true })));
         expect(brokers.length).toEqual(3);
     }, 10000);
 

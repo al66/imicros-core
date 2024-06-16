@@ -7,8 +7,11 @@ const { AdminService: AdminBasic } = require("../../index");
 const { VaultService: VaultBasic } = require("../../index");
 const { StoreService: StoreBasic }  = require("../../index");
 const { TemplateService: TemplateBasic } = require("../../index");
+const { SmtpService: SmtpBasic } = require("../../index");
 const { FlowService: FlowBasic } = require("../../index");
 const { BusinessRulesService: BusinessRulesBasic } = require("../../index");
+const { QueueService: QueueBasic } = require("../../index");
+const { WorkerService } = require("../../index");
 const VaultHelper = require("./vault");
 
 const { Serializer } = require("../../lib/provider/serializer");
@@ -31,6 +34,7 @@ const request = require("supertest");
 const _ = require("../../lib/modules/util/lodash");
 const { v4: uuid } = require("uuid");
 const { init } = require("secrets.js-grempe");
+const util = require("util");
 
 const Gateway = {
     name: "gateway",
@@ -249,44 +253,92 @@ const Store = {
     }
 }
 
+const Flow = {
+    name: "flow",
+    version: "v1",
+    mixins: [FlowBasic,BusinessRulesProvider,StoreProvider,QueueProvider,GroupsProvider,VaultProvider],
+    dependencies: ["v1.groups"],
+    settings: {
+        db: {
+            contactPoints: process.env.CASSANDRA_CONTACTPOINTS || "127.0.0.1", 
+            datacenter: process.env.CASSANDRA_DATACENTER || "datacenter1", 
+            keyspace: process.env.CASSANDRA_KEYSPACE_FLOW || "imicros_flow"
+        }
+    }
+}
+
+const BusinessRules = {
+    name: "businessRules",
+    version: "v1",
+    mixins: [BusinessRulesBasic,StoreProvider,GroupsProvider,VaultProvider],
+    dependencies: ["v1.groups"],
+    settings: {
+        db: {
+            contactPoints: process.env.CASSANDRA_CONTACTPOINTS || "127.0.0.1", 
+            datacenter: process.env.CASSANDRA_DATACENTER || "datacenter1", 
+            keyspace: process.env.CASSANDRA_KEYSPACE_DECISION || "imicros_decision"
+        }
+    }
+}
+
 const Templates = {
     name: "templates",
     version: "v1",
     mixins: [TemplateBasic, StoreProvider]
 }
 
-const brokers = [];
-let server;
-
-async function setup (nodeID) {
-    const console = global.console;
-    if (process.env.LOG === "console") global.console = require('console');        
-    const broker = new ServiceBroker({ 
-        nodeID: nodeID || "node-1",
-        logger: true,
-        transporter: process.env.NATS_TRANSPORTER || "nats://localhost:4222",
-        logLevel: "info",
-        // middlewares: [Authorized({ service: "v1.groups"})]
-        middlewares: [Authorized()]
-    });
-    const gateway = broker.createService(Gateway);
-    server = gateway.server;
-    broker.createService(Vault);
-    broker.createService(Users);
-    broker.createService(Agents);
-    broker.createService(Groups);
-    broker.createService(Admin);
-    broker.createService(Store);
-    broker.createService(Templates);
-    broker.start();
-    await broker.waitForServices(["gateway","v1.vault"]);
-    brokers.push(broker);
-    broker.logger.info("setup finished");
-    await broker.waitForServices(["v1.users","v1.groups","admin","unsealed", "v1.templates"]);
-    if (process.env.LOG === "console") global.console = console;        
-    return broker;
+const Smtp = {
+    name: "smtp",
+    version: "v1",
+    mixins: [SmtpBasic, GroupsProvider, StoreProvider, VaultProvider]
 }
 
+const kafka = process.env.KAFKA_BROKER || "localhost:9092";
+const Queue = { 
+    name: "queue",
+    version: "v1",
+    mixins: [QueueBasic, Serializer],
+    settings: {
+        brokers: [kafka],
+        allowAutoTopicCreation: true
+    }
+}
+const EventQueueWorker = { 
+    name: "eventQueueWorker",
+    version: null,
+    mixins: [WorkerService, Serializer],
+    settings: {
+        brokers: [kafka],
+        allowAutoTopicCreation: true,
+        topic: Constants.QUEUE_TOPIC_EVENTS,
+        fromBeginning: false,
+        handler: [
+            { event: "event.raised", handler: "v1.flow.assignEvent" },
+            { event: "instance.requested", handler: "v1.flow.createInstance" }
+        ]
+    }
+}
+const InstanceQueueWorker = { 
+    name: "instanceQueueWorker",
+    version: null,
+    mixins: [WorkerService, Serializer],
+    settings: {
+        brokers: [kafka],
+        allowAutoTopicCreation: true,
+        topic: Constants.QUEUE_TOPIC_INSTANCE,
+        fromBeginning: false,
+        handler: [
+            { event: "event.raised", handler: "v1.flow.processEvent" },
+            { event: "instance.processed", handler: "v1.flow.continueInstance" },
+            { event: "job.created", handler: "v1.flow.processJob" },
+            { event: "job.completed", handler: "v1.flow.processCommitJob" },
+            { event: "instance.completed", handler: "v1.flow.completeInstance"}
+        ]
+    }
+}
+
+//const brokers = [];
+/*
 async function unseal () {
     brokers[0].logger.info("unseal");
     await brokers[0].waitForServices(["v1.vault"]);
@@ -321,42 +373,7 @@ async function unseal () {
         });
     });
 }
-
-function getServer () {
-    return server;
-}
-
-async function getAdminGroupAccess () {
-    const console = global.console;
-    if (process.env.LOG === "console") global.console = require('console');        
-    const server = getServer();
-    let res = await request(server).post("/v1/users/logInPWA").send({
-        sessionId : uuid(),
-        email: admin.email,
-        password: admin.password,
-        locale: admin.locale
-    });
-    authData = res.body;
-    res = await request(server).get("/v1/users/get").set("Authorization","Bearer "+authData.authToken).send({});
-    const userData = res.body;
-    adminGroupId = Object.values(userData.groups)[0].groupId;
-    res = await request(server).post("/v1/groups/requestAccessForMember").set("Authorization","Bearer "+authData.authToken).send({ groupId: adminGroupId });
-    accessDataAdminGroup = res.body;
-    accessDataAdminGroup.groupId = adminGroupId;
-    accessDataAdminGroup.admin = admin;
-    //res = await request(server).post("/v1/groups/get").set("Authorization","Bearer "+accessDataAdminGroup.accessToken).send({ groupId: adminGroupId });
-    if (process.env.LOG === "console") global.console = console;        
-    return accessDataAdminGroup;
-}
-
-async function teardown () {
-    const console = global.console;
-    if (process.env.LOG === "console") global.console = require('console');        
-    for (let i=0; i<brokers.length; i++) {
-        await brokers[i].stop();
-    }
-    if (process.env.LOG === "console") global.console = console;        
-}
+*/
 
 const nodes = {};
 
@@ -390,19 +407,34 @@ class Node {
         broker.createService(Groups);
         broker.createService(Admin);
         broker.createService(Store);
+        broker.createService(Flow);
+        broker.createService(BusinessRules);
         broker.createService(Templates);
+        broker.createService(Smtp);
+        broker.createService(Queue);
+        broker.createService(EventQueueWorker);
+        broker.createService(InstanceQueueWorker);
         broker.start();
         await broker.waitForServices(["gateway","v1.vault"]);
-        brokers.push(broker);
+        // brokers.push(broker);
         broker.logger.info("setup finished");
-        await broker.waitForServices(["v1.users","v1.groups","admin","unsealed", "v1.templates"]);
+        await broker.waitForServices(["v1.users","v1.groups","admin","unsealed", "v1.store", "v1.flow", "v1.businessRules", "v1.templates", "v1.smtp", "v1.queue", "eventQueueWorker", "instanceQueueWorker"]);
         this.broker = broker;   
+        //console.log(util.inspect(broker.getLocalNodeInfo(), { showHidden: false, depth: null, colors: true }));
         this.resetConsole();        
         return this;
     }    
 
     getServer () {
         return this.server;
+    }
+
+    getBroker () {  
+        return this.broker;
+    }
+
+    getAdmin() {
+        return admin;
     }
 
     async stop () {
@@ -443,4 +475,5 @@ class Node {
 
 }
 
-module.exports = { setup, unseal, teardown, admin, getServer, getAdminGroupAccess, Node };
+//module.exports = { setup, unseal, teardown, admin, getServer, getAdminGroupAccess, Node };
+module.exports = { Node };

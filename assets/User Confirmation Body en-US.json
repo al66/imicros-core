@@ -1,0 +1,1 @@
+{ "template": "Please confirm your registration on the imicros server with the link below:\n{{ confirmationToken }}" }

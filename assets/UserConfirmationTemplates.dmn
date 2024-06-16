@@ -14,10 +14,10 @@
           <text>"en-US"</text>
         </inputEntry>
         <outputEntry id="LiteralExpression_103eh9s">
-          <text>"User Confirmation Subject en-US"</text>
+          <text>"workflow/templates/User Confirmation Subject en-US.json"</text>
         </outputEntry>
         <outputEntry id="LiteralExpression_0b150lr">
-          <text>"User Confirmation Body en-US"</text>
+          <text>"workflow/templates/User Confirmation Body en-US.json"</text>
         </outputEntry>
       </rule>
     </decisionTable>

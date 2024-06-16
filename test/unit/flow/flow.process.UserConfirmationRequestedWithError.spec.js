@@ -19,7 +19,8 @@ const instanceId = uuid();
 
 // called services
 const TemplateService = {
-    name: "template",
+    name: "templates",
+    version: "v1",
     actions: {
         render: {
             async handler(ctx) {
@@ -27,10 +28,10 @@ const TemplateService = {
                 if (this.calls % 2 === 0) throw new Error("Template not found");
                 let result = "";
                 switch (ctx.params.template) {
-                    case "User Confirmation Body en-US":
+                    case "workflow/templates/User Confirmation Body en-US.json":
                         result =  "Please confirm your email address by clicking the link below";
                         break;
-                    case "User Confirmation Subject en-US":
+                    case "workflow/templates/User Confirmation Subject en-US.json":
                         result = "<p>Click the link below to confirm your email address</p>";
                         break;
                 }

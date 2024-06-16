@@ -123,7 +123,7 @@ function getStore() {
 // action listBuckets { } => [ bucket ]    only for admin service
 
 const  StoreServiceMock = {
-    name: "minio",
+    name: "store",
     version: 1,
     
     /**

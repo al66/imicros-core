@@ -245,7 +245,8 @@ describe.each([
                     }, 
                     role: "admin"
                 }],
-                keys: expect.any(Object)
+                keys: expect.any(Object),
+                services: expect.any(Object)
             });
         });
 

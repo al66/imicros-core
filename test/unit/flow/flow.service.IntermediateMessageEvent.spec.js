@@ -91,7 +91,7 @@ describe("Test flow service basics", () => {
                 //mixins: [Store()],
                 // Sequence of mixins is important
                 mixins: [ExchangeService, QueueProvider, StoreProvider, GroupsProvider, VaultProvider],
-                dependencies: ["v1.minio","v1.groups"],
+                dependencies: ["v1.store","v1.groups"],
                 settings: { 
                     db: {
                         contactPoints: process.env.CASSANDRA_CONTACTPOINTS || "127.0.0.1", 

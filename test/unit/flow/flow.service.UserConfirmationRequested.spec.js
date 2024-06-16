@@ -28,10 +28,10 @@ const TemplateService = {
                 if (this.calls % 2 === 0) throw new Error("Template not found");
                 let result = "";
                 switch (ctx.params.template) {
-                    case "User Confirmation Body en-US":
+                    case "workflow/templates/User Confirmation Body en-US.json":
                         result =  "Please confirm your email address by clicking the link below";
                         break;
-                    case "User Confirmation Subject en-US":
+                    case "workflow/templates/User Confirmation Subject en-US.json":
                         result = "<p>Click the link below to confirm your email address</p>";
                         break;
                 }
@@ -352,8 +352,8 @@ describe("Test flow: process UserConfirmationRequested ", () => {
                 let result = await broker.call("flow.inspect", { instanceId }, opts );
                 expect(result).toBeDefined();
                 expect(result.context.templates).toEqual({
-                    subject: 'User Confirmation Subject en-US',
-                    body: 'User Confirmation Body en-US'
+                    subject: 'workflow/templates/User Confirmation Subject en-US.json',
+                    body: 'workflow/templates/User Confirmation Body en-US.json'
                 });
             });
 
