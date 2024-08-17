@@ -30,7 +30,7 @@
     "test-map": "jest test/unit/map --no-cache  --config=local.js",
     "test-exchange": "jest test/unit/exchange --no-cache  --config=local.js --log=console",
     "test-rules": "jest test/unit/businessRules --no-cache  --config=local.js --log=console",
-    "test-queue": "jest test/unit/queue --no-cache  --config=local.js",
+    "test-queue": "jest test/unit/queue --no-cache  --config=local.js --log=console",
     "test-clock": "jest test/unit/queue/queue.clock.spec.js --no-cache  --config=local.js --log=console",
     "test-timer": "jest test/unit/timer --no-cache  --config=local.js",
     "test-flow": "jest test/unit/flow --no-cache  --config=local.js --silent",
@@ -89,7 +89,7 @@
   "dependencies": {
     "@moleculer/channels": "^0.1.8",
     "@simplewebauthn/server": "^10.0.0",
-    "axios": "^1.6.8",
+    "axios": "^1.7.3",
     "base32.js": "^0.1.0",
     "cassandra-driver": "^4.7.2",
     "fast-xml-parser": "^4.3.6",

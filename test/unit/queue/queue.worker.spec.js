@@ -8,8 +8,8 @@ const { QueueProvider } = require("../../../index");
 // helpers & mocks
 const kafka = process.env.KAFKA_BROKER || "localhost:9092";
 const timestamp = Date.now();
-const topic = `test-topic-${timestamp}`;
-//const topic = "test-topic";
+//const topic = `test-topic-${timestamp}`;
+const topic = "test-topic";
 const { v4: uuid } = require("uuid");
 const received = [];
 const receivedBatch = [];
