@@ -16,21 +16,30 @@ const serviceUnsealed = "Unsealed";
 process.env.MASTER_TOKEN = "074e48c8e3c0bc19f9e22dd7570037392"; //crypto.randomBytes(32).toString("hex");
 process.env.SERVICE_TOKEN = "c1cd91053fca873a4cb7b2549ec1010a"; // crypto.randomBytes(32).toString("hex");
 
-const MasterService = Object.assign(Vault, { 
+const MasterService = { 
     name: serviceNameMaster,
+    mixins: [Vault],
     settings: {
         db: {
             contactPoints: process.env.CASSANDRA_CONTACTPOINTS || "127.0.0.1", 
             datacenter: process.env.CASSANDRA_DATACENTER || "datacenter1", 
             keyspace: process.env.CASSANDRA_KEYSPACE || "imicros_keys" ,
-            hashTable: "hashes_test_" + timestamp
+            hashTable: "hashes_test"
         },
         service: {
             unsealed: serviceUnsealed
         },
         expirationDays: 20
+    },
+    actions:  {
+        reset: {
+            async handler(ctx) {
+                await this.db.reset();
+                return true;
+            }
+        }
     }
-});
+};
 
 const expirationDays = 20;
 let expired;
@@ -296,6 +305,11 @@ describe("Test master/key service", () => {
             expect(res.payload).toBeDefined();
             expect(res.payload.test).toBeDefined();
             expect(res.payload.any.deep.object).toEqual([1,2,3]);
+        });
+
+        it("it should reset the hash table", async () => {
+            let res = await brokers[0].call(serviceNameMaster + ".reset");
+            expect(res).toBeDefined();
         });
 
         it("should stop the broker", async () => {

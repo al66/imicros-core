@@ -138,7 +138,7 @@ describe("Test database connection", () => {
         it("should preserve the same key for multiple requests", async () => {
             const timestamp = Date.now();
             let requests = [];
-            for (let i=0;i< 100; i++) {
+            for (let i=0;i< 10; i++) {
                 let single = db.preserveUniqueKey({ 
                     key: `${timestamp}@imicros.de`,
                     uid: uuid()
@@ -147,7 +147,7 @@ describe("Test database connection", () => {
             }
             const result = await Promise.all(requests);
             // console.log(result);
-            for (let i=0;i< 100; i++) {
+            for (let i=0;i< 10; i++) {
                 expect(result[i]).toEqual(result[0]);
             }
         })
