@@ -1,0 +1,15 @@
+{
+    "name": "imicros-backend",
+    "version": "0.0.7",
+    "description": "Docker build",
+    "scripts": {
+      "start": "moleculer-runner services"
+    },
+    "author": "Andreas.Leinen@imicros.de",
+    "dependencies": {
+      "imicros-core": "^0.0.2"
+    },
+    "engines": {
+      "node": ">= 20.16.0"
+    }
+  }
