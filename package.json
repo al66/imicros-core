@@ -1,6 +1,6 @@
 {
   "name": "imicros-core",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "description": "core services for imicros-backend",
   "main": "index.js",
   "directories": {
