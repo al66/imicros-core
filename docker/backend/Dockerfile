@@ -15,4 +15,4 @@ RUN npm install --omit=dev
 COPY moleculer.config.js ./
 COPY services ./
 
-#CMD ["npm", "start"]
+CMD ["npm", "start"]

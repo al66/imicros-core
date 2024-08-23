@@ -83,7 +83,6 @@
   "devDependencies": {
     "jest": "^29.7.0",
     "leaked-handles": "^5.2.0",
-    "moleculer-web": "^0.10.7",
     "supertest": "^7.0.0"
   },
   "dependencies": {
@@ -100,6 +99,7 @@
     "kafkajs": "^2.2.4",
     "minio": "^8.0.0",
     "moleculer": "^0.14.33",
+    "moleculer-web": "^0.10.7",
     "nats": "^2.24.0",
     "nodemailer": "^6.9.13",
     "qrcode": "^1.5.3",
