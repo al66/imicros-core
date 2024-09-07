@@ -4,6 +4,7 @@ const { UsersService: UsersBasic } = require("../../index");
 const { GroupsService: GroupsBasic } = require("../../index");
 const { AgentsService: AgentsBasic } = require("../../index");
 const { AdminService: AdminBasic } = require("../../index");
+const { KeysService } = require("../../index");
 const { VaultService: VaultBasic } = require("../../index");
 const { StoreService: StoreBasic }  = require("../../index");
 const { TemplateService: TemplateBasic } = require("../../index");
@@ -16,9 +17,9 @@ const VaultHelper = require("./vault");
 
 const { Serializer } = require("../../lib/provider/serializer");
 const { Publisher } = require("../../lib/provider/publisher");
-const { Keys } = require("../../lib/provider/keys");
 const { Encryption } = require("../../lib/provider/encryption");
 
+const { KeysProvider } = require("../../index");
 const { VaultProvider } = require("../../lib/provider/vault");
 const { GroupsProvider } = require("../../lib/provider/groups");
 const { StoreProvider } = require("../../lib/provider/store");
@@ -148,14 +149,6 @@ const Gateway = {
 }
 
 const settings = {
-    keys: {
-        db: {
-            contactPoints: process.env.CASSANDRA_CONTACTPOINTS || "127.0.0.1", 
-            datacenter: process.env.CASSANDRA_DATACENTER || "datacenter1", 
-            keyspace: process.env.CASSANDRA_KEYSPACE_AUTH || "imicros_auth",
-            keysTable: "authkeys"
-        }
-    },
     repository:{
         snapshotCounter: 2  // new snapshot after 2 new events
     },
@@ -186,6 +179,13 @@ const Vault = {
     }
 };
 
+const Keys = {
+    name: "keys",
+    version: "v1",
+    mixins: [KeysService],
+    settings
+};
+
 const admin = {
     email: `admin${timestamp.valueOf()}@imicros.de`,
     password: "ANRC4ZtNmYmpwhzCVAeuRRTX",
@@ -198,7 +198,7 @@ const Users = {
     // sequence of providers is important: 
     // Keys and Serializer must be first, as they are used by Encryption
     // Database again depends on Encryption
-    mixins: [UsersBasic, CassandraDB, Publisher, Encryption, Serializer, Keys, VaultProvider], 
+    mixins: [UsersBasic, CassandraDB, Publisher, Encryption, Serializer, KeysProvider, VaultProvider], 
     // dependencies: ["unsealed"],
     settings
 }
@@ -209,7 +209,7 @@ const Agents = {
     // sequence of providers is important: 
     // Keys and Serializer must be first, as they are used by Encryption
     // Database again depends on Encryption
-    mixins: [AgentsBasic, CassandraDB, Publisher, Encryption, Serializer, Keys, VaultProvider], 
+    mixins: [AgentsBasic, CassandraDB, Publisher, Encryption, Serializer, KeysProvider, VaultProvider], 
     // dependencies: ["unsealed"],
     settings
 }
@@ -220,7 +220,7 @@ const Groups = {
     // sequence of providers is important: 
     // Keys and Serializer must be first, as they are used by Encryption
     // Database again depends on Encryption
-    mixins: [GroupsBasic, CassandraDB, Publisher, Encryption, Serializer, Keys, VaultProvider], 
+    mixins: [GroupsBasic, CassandraDB, Publisher, Encryption, Serializer, KeysProvider, VaultProvider], 
     // dependencies: ["unsealed"],
     settings
 }
@@ -229,7 +229,7 @@ const Admin = {
     // sequence of providers is important: 
     // Keys and Serializer must be first, as they are used by Encryption
     // Database again depends on Encryption
-    mixins: [AdminBasic, CassandraDB, Publisher, Encryption, Serializer, Keys, VaultProvider],
+    mixins: [AdminBasic, CassandraDB, Publisher, Encryption, Serializer, KeysProvider, VaultProvider],
     dependencies: ["unsealed"],
     settings: {
         uniqueKey: `authm${timestamp.valueOf()}.admin.group`,
@@ -402,6 +402,7 @@ class Node {
         const gateway = broker.createService(Gateway);
         this.server = gateway.server;
         broker.createService(Vault);
+        broker.createService(Keys);
         broker.createService(Users);
         broker.createService(Agents);
         broker.createService(Groups);
@@ -415,7 +416,7 @@ class Node {
         broker.createService(EventQueueWorker);
         broker.createService(InstanceQueueWorker);
         broker.start();
-        await broker.waitForServices(["gateway","v1.vault"]);
+        await broker.waitForServices(["gateway","v1.vault","v1.keys"]);
         // brokers.push(broker);
         broker.logger.info("setup finished");
         await broker.waitForServices(["v1.users","v1.groups","admin","unsealed", "v1.store", "v1.flow", "v1.businessRules", "v1.templates", "v1.smtp", "v1.queue", "eventQueueWorker", "instanceQueueWorker"]);

@@ -4,6 +4,7 @@
 
 const { ServiceBroker } = require("moleculer");
 const { VaultService: Vault } = require("../../../index");
+const { VaultDatabaseProvider } = require("../../../index");
 
 const { setTimeout } = require("timers/promises");
 
@@ -18,7 +19,7 @@ process.env.SERVICE_TOKEN = "c1cd91053fca873a4cb7b2549ec1010a"; // crypto.random
 
 const MasterService = { 
     name: serviceNameMaster,
-    mixins: [Vault],
+    mixins: [Vault, VaultDatabaseProvider],
     settings: {
         db: {
             contactPoints: process.env.CASSANDRA_CONTACTPOINTS || "127.0.0.1", 

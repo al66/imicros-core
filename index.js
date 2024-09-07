@@ -3,12 +3,16 @@
  */
 "use strict";
 
+const { authDatabaseProvider } = require("./lib/provider/authDatabaseProvider");
+const { Publisher } = require("./lib/provider/publisher");
+
 
 module.exports = {
     // services
     UsersService: require("./lib/services/users"),
     GroupsService: require("./lib/services/groups"),
     AgentsService: require("./lib/services/agents"),
+    KeysService: require("./lib/services/keys"),
     VaultService: require("./lib/services/vault"),
     StoreService: require("./lib/services/minio"),
     QueueService: require("./lib/services/queue"),
@@ -29,7 +33,12 @@ module.exports = {
     QueueProvider: require("./lib/provider/queue").QueueProvider,    
     ExchangeProvider: require("./lib/provider/exchange").ExchangeProvider,
     BusinessRulesProvider: require("./lib/provider/businessRules").BusinessRulesProvider,
+    AuthDatabaseProvider: require("./lib/provider/authDatabaseProvider").AuthDatabaseProvider,
+    VaultDatabaseProvider: require("./lib/provider/vaultDatabaseProvider").VaultDatabaseProvider,
+    Publisher: require("./lib/provider/publisher").Publisher,
     Serializer: require("./lib/provider/serializer").Serializer,
+    Encryption: require("./lib/provider/encryption").Encryption,
+    KeysProvider: require("./lib/provider/keys").KeysProvider,
     // mixins
     GatewayMixin: require("./lib/mixins/gateway.mixin"),
     // middlewares

@@ -13,6 +13,7 @@ RUN apk update && apk upgrade && \
 RUN npm install --omit=dev
 
 COPY moleculer.config.js ./
-COPY services ./
+COPY services ./services
 
+#CMD ["bash"]
 CMD ["npm", "start"]

@@ -6,7 +6,8 @@ const { UsersService } = require("../../../index");
 const { GroupsService } = require("../../../index");
 const { Serializer } = require("../../../lib/provider/serializer");
 const { Publisher } = require("../../../lib/provider/publisher");
-const { Keys } = require("../../../lib/provider/keys");
+const { KeysService } = require("../../../index");
+const { KeysProvider } = require("../../../index");
 const { Encryption } = require("../../../lib/provider/encryption");
 const { VaultProvider } = require("../../../lib/provider/vault");
 const { Constants } = require("../../../lib/classes/util/constants");
@@ -94,17 +95,9 @@ describe.each([
                 logLevel: "info" //"debug"
             });
             broker.createService({
-                mixins: [UsersService, database, Publisher, Encryption, Serializer, Keys, VaultProvider], 
-                dependencies: ["v1.vault"],
+                mixins: [UsersService, database, Publisher, Encryption, Serializer, KeysProvider, VaultProvider], 
+                dependencies: ["v1.vault","v1.keys"],
                 settings: {
-                    keys: {
-                        db: {
-                            contactPoints: process.env.CASSANDRA_CONTACTPOINTS || "127.0.0.1", 
-                            datacenter: process.env.CASSANDRA_DATACENTER || "datacenter1", 
-                            keyspace: process.env.CASSANDRA_KEYSPACE_AUTH || "imicros_auth",
-                            keysTable: "authkeys"
-                        }
-                    },
                     repository:{
                         snapshotCounter: 2  // new snapshot after 2 new events
                     },
@@ -114,17 +107,9 @@ describe.each([
                 }
             });
             broker.createService({
-                mixins: [GroupsService, database, Publisher, Encryption, Serializer, Keys, VaultProvider],
-                dependencies: ["v1.vault"],
+                mixins: [GroupsService, database, Publisher, Encryption, Serializer, KeysProvider, VaultProvider],
+                dependencies: ["v1.vault","v1.keys"],
                 settings: {
-                    keys: {
-                        db: {
-                            contactPoints: process.env.CASSANDRA_CONTACTPOINTS || "127.0.0.1", 
-                            datacenter: process.env.CASSANDRA_DATACENTER || "datacenter1", 
-                            keyspace: process.env.CASSANDRA_KEYSPACE_AUTH || "imicros_auth",
-                            keysTable: "authkeys"
-                        }
-                    },
                     vault: {
                         service: "v1.vault"
                     }
@@ -134,20 +119,12 @@ describe.each([
                 // sequence of providers is important: 
                 // Keys and Serializer must be first, as they are used by Encryption
                 // Database again depends on Encryption
-                mixins: [AdminService, database, Publisher, Encryption, Serializer, Keys, VaultProvider], 
-                dependencies: ["v1.vault","v1.groups","v1.users"],
+                mixins: [AdminService, database, Publisher, Encryption, Serializer, KeysProvider, VaultProvider], 
+                dependencies: ["v1.vault","v1.keys","v1.groups","v1.users"],
                 settings: {
                     email: admin.email,
                     initialPassword: admin.password,
                     locale: admin.locale,
-                    keys: {
-                        db: {
-                            contactPoints: process.env.CASSANDRA_CONTACTPOINTS || "127.0.0.1", 
-                            datacenter: process.env.CASSANDRA_DATACENTER || "datacenter1", 
-                            keyspace: process.env.CASSANDRA_KEYSPACE_AUTH || "imicros_auth",
-                            keysTable: "authkeys"
-                        }
-                    },
                     repository:{
                         snapshotCounter: 2  // new snapshot after 2 new events
                     },
@@ -158,6 +135,7 @@ describe.each([
             });
             broker.createService(CollectAdminEvents);
             broker.createService(CollectEvents);
+            broker.createService(KeysService);
             broker.createService(VaultServiceMock);
             await broker.start();
             expect(broker).toBeDefined()

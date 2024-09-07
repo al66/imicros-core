@@ -6,7 +6,8 @@ const { GroupsService: Groups } = require("../../../index");
 const { AgentsService: Agents } = require("../../../index");
 const { Serializer } = require("../../../lib/provider/serializer");
 const { Publisher } = require("../../../lib/provider/publisher");
-const { Keys } = require("../../../lib/provider/keys");
+const { KeysService } = require("../../../index");
+const { KeysProvider } = require("../../../index");
 const { Encryption } = require("../../../lib/provider/encryption");
 const { VaultProvider } = require("../../../lib/provider/vault");
 const { GroupsProvider } = require("../../../lib/provider/groups");
@@ -86,52 +87,25 @@ describe.each([
                 // sequence of providers is important: 
                 // Keys and Serializer must be first, as they are used by Encryption
                 // Database again depends on Encryption
-                mixins: [Users, database, Publisher, Encryption, Serializer, Keys, VaultProvider], 
-                dependencies: ["v1.vault"],
+                mixins: [Users, database, Publisher, Encryption, Serializer, KeysProvider, VaultProvider], 
+                dependencies: ["v1.vault","v1.keys"],
                 settings: {
-                    keys: {
-                        db: {
-                            contactPoints: process.env.CASSANDRA_CONTACTPOINTS || "127.0.0.1", 
-                            datacenter: process.env.CASSANDRA_DATACENTER || "datacenter1", 
-                            keyspace: process.env.CASSANDRA_KEYSPACE_AUTH || "imicros_auth",
-                            keysTable: "authkeys"
-                        }
-                    },
                     repository:{
                         snapshotCounter: 2  // new snapshot after 2 new events
                     }
                 }
             });
             broker.createService({
-                mixins: [Groups, database, Publisher, Encryption, Serializer, Keys, VaultProvider], 
-                dependencies: ["v1.vault"],
-                settings: {
-                    keys: {
-                        db: {
-                            contactPoints: process.env.CASSANDRA_CONTACTPOINTS || "127.0.0.1", 
-                            datacenter: process.env.CASSANDRA_DATACENTER || "datacenter1", 
-                            keyspace: process.env.CASSANDRA_KEYSPACE_AUTH || "imicros_auth",
-                            keysTable: "authkeys"
-                        }
-                    }
-                }
+                mixins: [Groups, database, Publisher, Encryption, Serializer, KeysProvider, VaultProvider], 
+                dependencies: ["v1.vault","v1.keys"],
             })
             broker.createService({
-                mixins: [Agents, database, Publisher, Encryption, Serializer, Keys, VaultProvider], 
-                dependencies: ["v1.vault"],
-                settings: {
-                    keys: {
-                        db: {
-                            contactPoints: process.env.CASSANDRA_CONTACTPOINTS || "127.0.0.1", 
-                            datacenter: process.env.CASSANDRA_DATACENTER || "datacenter1", 
-                            keyspace: process.env.CASSANDRA_KEYSPACE_AUTH || "imicros_auth",
-                            keysTable: "authkeys"
-                        }
-                    }
-                }
+                mixins: [Agents, database, Publisher, Encryption, Serializer, KeysProvider, VaultProvider], 
+                dependencies: ["v1.vault","v1.keys"],
             })
             broker.createService(CollectUsersEvents);
             broker.createService(VaultServiceMock);
+            broker.createService(KeysService);
             broker.createService(TestService);
             await broker.start();
             // await broker.waitForServices(["users","groups","agents"]);

@@ -1,10 +1,12 @@
+"use strict";
+
 const ApiService = require("moleculer-web");
-const { Gateway: GatewayMixin}  = require("imciors-core");
+const { GatewayMixin }  = require("imicros-core");
 
-
-const Gateway = {
+module.exports = {
     name: "gateway",
-    mixins: [ApiService, GatewayMixin],
+    version: "v1",
+    mixins: [ApiService, GatewayMixin ],
     settings: {
         routes: [{
             path: "/",

@@ -21,6 +21,7 @@
     "test-vault": "jest test/unit/vault --no-cache  --config=local.js --forceExit --log=console",
     "test-unseal": "jest test/unit/unseal --no-cache",
     "test-gateway": "jest test/unit/gateway --no-cache",
+    "test-keys": "jest test/unit/keys --no-cache  --config=local.js  --log=console",
     "test-store": "jest test/unit/store --runInBand --no-cache  --config=local.js  --log=console",
     "test-store-only": "jest test/unit/store/minio.spec.js --runInBand --no-cache  --config=local.js  --log=console",
     "test-store-mock": "jest test/unit/store/mock.spec.js --runInBand --no-cache  --config=local.js  --log=console",
