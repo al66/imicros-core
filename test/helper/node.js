@@ -191,6 +191,10 @@ const admin = {
     password: "ANRC4ZtNmYmpwhzCVAeuRRTX",
     locale: "deDE"
 }
+process.env.ADMIN_EMAIL = admin.email;
+process.env.ADMIN_INITIALPASSWORD = admin.password;
+process.env.ADMIN_LOCALE = admin.locale;
+
 
 const Users = {
     name: "users",
@@ -232,25 +236,14 @@ const Admin = {
     mixins: [AdminBasic, CassandraDB, Publisher, Encryption, Serializer, KeysProvider, VaultProvider],
     dependencies: ["unsealed"],
     settings: {
-        uniqueKey: `authm${timestamp.valueOf()}.admin.group`,
-        email: admin.email,
-        initialPassword: admin.password,
-        locale: admin.locale,
-        keys: settings.keys,
-        repository:settings.repository,
-        vault: settings.vault
+        uniqueKey: `authm${timestamp.valueOf()}.admin.group`
     }
 }
 
 const Store = {
     name: "store",
     version: "v1",
-    mixins: [StoreBasic, GroupsProvider, VaultProvider],
-    settings: {
-        services: {
-            groups: "v1.groups"
-        }
-    }
+    mixins: [StoreBasic, GroupsProvider, VaultProvider]
 }
 
 const Flow = {
@@ -293,22 +286,22 @@ const Smtp = {
     mixins: [SmtpBasic, GroupsProvider, StoreProvider, VaultProvider]
 }
 
-const kafka = process.env.KAFKA_BROKER || "localhost:9092";
+//const kafka = process.env.KAFKA_BROKER || "localhost:9092";
 const Queue = { 
     name: "queue",
     version: "v1",
     mixins: [QueueBasic, Serializer],
     settings: {
-        brokers: [kafka],
+        //brokers: [kafka],
         allowAutoTopicCreation: true
     }
 }
 const EventQueueWorker = { 
     name: "eventQueueWorker",
-    version: null,
+    version: 1,
     mixins: [WorkerService, Serializer],
     settings: {
-        brokers: [kafka],
+        //brokers: [kafka],
         allowAutoTopicCreation: true,
         topic: Constants.QUEUE_TOPIC_EVENTS,
         fromBeginning: false,
@@ -320,10 +313,10 @@ const EventQueueWorker = {
 }
 const InstanceQueueWorker = { 
     name: "instanceQueueWorker",
-    version: null,
+    version: 1,
     mixins: [WorkerService, Serializer],
     settings: {
-        brokers: [kafka],
+        //brokers: [kafka],
         allowAutoTopicCreation: true,
         topic: Constants.QUEUE_TOPIC_INSTANCE,
         fromBeginning: false,
@@ -419,7 +412,7 @@ class Node {
         await broker.waitForServices(["gateway","v1.vault","v1.keys"]);
         // brokers.push(broker);
         broker.logger.info("setup finished");
-        await broker.waitForServices(["v1.users","v1.groups","admin","unsealed", "v1.store", "v1.flow", "v1.businessRules", "v1.templates", "v1.smtp", "v1.queue", "eventQueueWorker", "instanceQueueWorker"]);
+        await broker.waitForServices(["v1.users","v1.groups","admin","unsealed", "v1.store", "v1.flow", "v1.businessRules", "v1.templates", "v1.smtp", "v1.queue", "v1.eventQueueWorker", "v1.instanceQueueWorker"]);
         this.broker = broker;   
         //console.log(util.inspect(broker.getLocalNodeInfo(), { showHidden: false, depth: null, colors: true }));
         this.resetConsole();        
