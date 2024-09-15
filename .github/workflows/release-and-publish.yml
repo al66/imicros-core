@@ -1,0 +1,17 @@
+name: Releases and publishes
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  publish:
+    name: Publish on npm
+    runs-on: ubuntu-latest
+    steps:
+    - name: Publish
+      uses: mikeal/merge-release@master
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        NPM_AUTH_TOKEN: ${{ secrets.NPM_AUTH_TOKEN }}
+
