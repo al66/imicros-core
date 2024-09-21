@@ -9,7 +9,7 @@ module.exports = {
     logLevel: "info",
     logFormatter: "default",
 
-    transporter: process.env.TRANSPORTER_NATS, //"nats://nats:4222",
+    transporter: process.env.NATS_TRANSPORTER, //"nats://nats:4222",
 
     middlewares: [Authorized()],
 
