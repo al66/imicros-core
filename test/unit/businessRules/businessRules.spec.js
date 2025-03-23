@@ -42,14 +42,14 @@ describe("Test business rules service", () => {
             service = broker.createService({ 
                 name: "businessRules",
                 mixins: [BusinessRulesService, StoreProvider, GroupsProvider, VaultProvider],
-                dependencies: ["v1.groups"],
+                dependencies: ["v1.groups"]/*,
                 settings: {
                     db: { 
                         contactPoints: process.env.CASSANDRA_CONTACTPOINTS || "127.0.0.1", 
                         datacenter: process.env.CASSANDRA_DATACENTER || "datacenter1", 
                         keyspace: process.env.CASSANDRA_KEYSPACE_DECISION || "imicros_decision"
                     } 
-                }
+                }*/
             });
             // Start additional services
             [StoreServiceMock, GroupsServiceMock, VaultServiceMock].map(service => { return broker.createService(service); }); 
