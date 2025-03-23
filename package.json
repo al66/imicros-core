@@ -1,6 +1,6 @@
 {
   "name": "imicros-core",
-  "version": "0.0.8",
+  "version": "0.0.9",
   "description": "core services for imicros-backend",
   "main": "index.js",
   "directories": {
@@ -94,7 +94,7 @@
     "cassandra-driver": "^4.7.2",
     "fast-xml-parser": "^4.3.6",
     "handlebars": "^4.7.8",
-    "imicros-feel-interpreter": "^0.0.13",
+    "imicros-feel-interpreter": "^1.0.0",
     "jsonata": "^2.0.4",
     "jsonwebtoken": "^9.0.2",
     "kafkajs": "^2.2.4",
